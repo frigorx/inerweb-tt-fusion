@@ -11,6 +11,17 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<!-- Modules Fusion -->
+<script src="js/sync-queue.js" defer></script>
+<script src="js/jury.js" defer></script>
+<script src="js/phases.js" defer></script>
+<script src="js/exposition.js" defer></script>
+<script src="js/impossibilites.js" defer></script>
+<script src="js/activites.js" defer></script>
+<script src="js/tache-complexe.js" defer></script>
+<script src="js/signatures.js" defer></script>
+<script src="js/rapport-pdf.js" defer></script>
+<script src="js/fusion-eval.js" defer></script>
 <style>
 /* RADIOGUIDAGE CSS
    [1] Variables & Reset
@@ -329,7 +340,7 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
     <div class="hdr-logo"><span class="hdr-logo-ico">❄️</span><div class="hdr-logo-name">inerWeb TT<em>CAP IFCA</em></div></div>
     <div class="hdr-mid" id="hdrEtab">Établissement</div>
     <div class="hdr-right">
-      <div class="sync-pill" onclick="syncAll()"><span class="sync-dot syncing" id="syncDot"></span><span id="syncLbl">Sync...</span></div>
+      <div class="sync-pill" onclick="syncAll()"><span class="sync-dot syncing" id="syncDot"></span><span id="syncLbl">Sync...</span><span id="syncBadge" style="display:none;background:var(--orange);color:#fff;font-size:.65rem;font-weight:800;padding:.1rem .4rem;border-radius:10px;margin-left:.3rem;">0</span></div>
       <button class="btn btn-ghost btn-xs" onclick="showParamModal()">⚙️</button>
     </div>
   </header>
@@ -339,6 +350,7 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
     <button class="nav-btn" data-tab="eleves" onclick="switchTab('eleves')"><span class="ni">👥</span>Élèves</button>
     <button class="nav-btn" data-tab="ep2" onclick="switchTab('ep2')"><span class="ni">🔧</span>EP2</button>
     <button class="nav-btn" data-tab="ep3" onclick="switchTab('ep3')"><span class="ni">⚡</span>EP3</button>
+    <button class="nav-btn" data-tab="activites" onclick="switchTab('activites')"><span class="ni">📋</span>Activités</button>
     <button class="nav-btn" data-tab="stage" onclick="switchTab('stage')"><span class="ni">🏢</span>Stage</button>
     <button class="nav-btn" data-tab="bilan" onclick="switchTab('bilan')"><span class="ni">🏆</span>Bilan</button>
     <button class="nav-btn" data-tab="rapport" onclick="switchTab('rapport')"><span class="ni">📝</span>Rapport</button>
@@ -417,6 +429,19 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
       <div id="ep3List"></div>
     </div></div>
 
+    <!-- ACTIVITÉS PÉDAGOGIQUES -->
+    <div class="tab-pane" id="tab-activites"><div class="tab-inner">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
+        <span style="font-weight:800;color:var(--bleu);font-size:.9rem">📋 Activités pédagogiques</span>
+        <div style="display:flex;gap:.4rem;">
+          <span id="phaseToggleActivites"></span>
+          <button class="btn btn-primary btn-sm" onclick="activModule.showCreateModal()">➕ Nouvelle activité</button>
+        </div>
+      </div>
+      <div id="activiteStats" style="display:flex;gap:.5rem;margin-bottom:.75rem;flex-wrap:wrap;"></div>
+      <div id="activitesList"></div>
+    </div></div>
+
     <!-- STAGE -->
     <div class="tab-pane" id="tab-stage"><div class="tab-inner">
       <div class="stage-tabs">
@@ -481,7 +506,11 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
           <button id="btnCertif" class="btn btn-ghost btn-sm" onclick="setPhase('certificatif')">📙 Certif.</button>
         </div>
       </div>
+      <div id="expositionBar" style="margin-bottom:.75rem;"></div>
       <div id="bilanContent"><div class="empty"><div class="ei">🏆</div><p>Sélectionnez un élève</p></div></div>
+      <div id="expositionDetail" style="margin-top:.75rem;"></div>
+      <div id="tacheComplexeContainer" style="margin-top:.75rem;"></div>
+      <div id="signaturesContainer" style="margin-top:.75rem;"></div>
     </div></div>
 
     <!-- RAPPORT DE STAGE -->
@@ -506,7 +535,9 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
         <div class="exp-card" onclick="exportAllPDF()"><div class="exp-icon">📚</div><div class="exp-lbl">PDF classe entière</div><div class="exp-sub">Tous les élèves</div></div>
         <div class="exp-card" onclick="exportExcel()"><div class="exp-icon">📊</div><div class="exp-lbl">Excel récap.</div><div class="exp-sub">Notes EP2 + EP3</div></div>
         <div class="exp-card" onclick="exportBackup()"><div class="exp-icon">💾</div><div class="exp-lbl">Backup JSON</div><div class="exp-sub">Toutes les données</div></div>
+        <div class="exp-card" onclick="rapportModule.generate()"><div class="exp-icon">📋</div><div class="exp-lbl">Rapport inspection</div><div class="exp-sub">PDF synthétique</div></div>
       </div>
+      <div id="fusionDropZone" style="margin-bottom:.75rem;"></div>
       <div class="card">
         <div class="card-title">🔀 Fusion multi-évaluateurs</div>
         <p style="font-size:.78rem;color:var(--gris);margin-bottom:.75rem;">Importez le backup d'un collègue — empilement sans écrasement.</p>
@@ -552,6 +583,11 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
           </div>
         </div>
         <button class="btn btn-primary" onclick="saveAppConfig()">💾 Enregistrer</button>
+      </div>
+      <div class="card">
+        <div class="card-title">⚖️ Composition des jurys</div>
+        <p style="font-size:.75rem;color:var(--gris);margin-bottom:.75rem;">Définissez les membres du jury pour chaque contexte d'évaluation.</p>
+        <div id="juryContainer"></div>
       </div>
       <div class="card">
         <div class="card-title">📊 Barème de notation</div>
@@ -925,6 +961,7 @@ function switchTab(tab){
   if(tab==='ep3'){popSelects();renderEP3();}
   if(tab==='bilan'){popSelects();if(cur)renderBilan();}
   if(tab==='rapport'){popSelectsRapport();if(cur)renderRapport();}
+  if(tab==='activites'&&window.activModule){activModule.renderList(document.getElementById('activitesList'));const st=activModule.getStats();const c=document.getElementById('activiteStats');if(c)c.innerHTML=`<span class="badge" style="background:var(--bleu2);color:#fff">Total: ${st.total}</span><span class="badge" style="background:var(--ep2);color:#fff">EP2: ${st.byEpreuve.EP2||0}</span><span class="badge" style="background:var(--ep3);color:#fff">EP3: ${(st.byEpreuve['EP3-A']||0)+(st.byEpreuve['EP3-B']||0)+(st.byEpreuve['EP3-C']||0)}</span>`;}
   if(tab==='stage')renderStage();
   if(tab==='export'){renderJournal();renderBackupList();}
   if(tab==='eleves')renderEleves();
@@ -1712,8 +1749,27 @@ function renderBilan(){
       ${n2.cloture?`<button class="btn btn-ghost btn-sm" onclick="devrouille('EP2')">🔓 Déverrouiller EP2</button>`:`<button class="btn btn-vert btn-sm" onclick="cloture('EP2')">🔒 Clôturer EP2</button>`}
       ${n3.cloture?`<button class="btn btn-ghost btn-sm" onclick="devrouille('EP3')">🔓 Déverrouiller EP3</button>`:`<button class="btn btn-violet btn-sm" onclick="cloture('EP3')">🔒 Clôturer EP3</button>`}
       <button class="btn btn-orange btn-sm" onclick="exportStudentPDF()">📄 PDF fiche</button>
+      <button class="btn btn-ghost btn-sm" onclick="rapportModule&&rapportModule.generateStudentPDF(cur)">📋 PDF inspection</button>
     </div>
   </div>`;
+  // Modules Fusion — rendu contextuel pour l'élève sélectionné
+  if(window.expoModule){
+    const bar=document.getElementById('expositionBar');if(bar)bar.innerHTML=expoModule.renderBar(cur);
+    const det=document.getElementById('expositionDetail');if(det)det.innerHTML='<div class="card"><div class="card-title">📊 Détail exposition</div>'+expoModule.renderDetail(cur)+'</div>';
+  }
+  if(window.tacheModule){
+    tacheModule.init(cur);
+    const tc=document.getElementById('tacheComplexeContainer');
+    if(tc){tc.innerHTML='<div class="card"><div class="card-title">📝 Tâche complexe (rattrapage)</div><div id="tacheComplexeInner"></div></div>';tacheModule.render(cur,document.getElementById('tacheComplexeInner'));}
+  }
+  if(window.sigModule){
+    sigModule.init(cur);
+    const sc=document.getElementById('signaturesContainer');
+    if(sc)sc.innerHTML='<div class="card"><div class="card-title">✍️ Signatures</div><div id="sigTuteur1" style="margin-bottom:.5rem"><strong style="font-size:.75rem">Tuteur PFMP 1</strong></div><div id="sigTuteur2" style="margin-bottom:.5rem"><strong style="font-size:.75rem">Tuteur PFMP 2</strong></div><div id="sigCandidat"><strong style="font-size:.75rem">Candidat</strong></div></div>';
+    sigModule.render(cur,'tuteur_pfmp1',document.getElementById('sigTuteur1'));
+    sigModule.render(cur,'tuteur_pfmp2',document.getElementById('sigTuteur2'));
+    sigModule.render(cur,'candidat',document.getElementById('sigCandidat'));
+  }
 }
 function bilanTable(det){
   const rows=det.map(d=>{
@@ -2425,6 +2481,12 @@ async function initApp(){
   await initDB();
   loadLocal();loadAdminData();checkAdmin();loadCfgToForm();updateAll();syncAll();setPhase('formatif');
   startAutoBackup();
+  // Modules Fusion
+  if(window.syncQueue) syncQueue.init(db);
+  if(window.juryModule){juryModule.init();juryModule.render(document.getElementById('juryContainer'));}
+  if(window.phasesModule){phasesModule.init();phasesModule.renderToggle('#phaseToggleActivites');}
+  if(window.activModule){activModule.init();activModule.renderList(document.getElementById('activitesList'));}
+  if(window.fusionModule) fusionModule.renderDropZone(document.getElementById('fusionDropZone'));
   // [Phase 3] Deep-link : ?eleve=ELV-001&mode=ep2
   handleDeepLink();
 }
