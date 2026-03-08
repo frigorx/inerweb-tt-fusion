@@ -24,25 +24,35 @@ window.syncQueue = (function () {
   // Utilitaires IndexedDB
   // =========================================================
 
+  /** Vérifie si le store existe dans la DB */
+  function _hasStore() {
+    return _db && _db.objectStoreNames.contains(STORE_NAME);
+  }
+
   /** Charge tous les items du store dans _queue */
   function _loadFromDB() {
-    return new Promise(function (resolve, reject) {
-      if (!_db) return resolve();
-      var tx = _db.transaction(STORE_NAME, 'readonly');
-      var store = tx.objectStore(STORE_NAME);
-      var req = store.getAll();
-      req.onsuccess = function () {
-        _queue = req.result || [];
+    return new Promise(function (resolve) {
+      if (!_hasStore()) return resolve();
+      try {
+        var tx = _db.transaction(STORE_NAME, 'readonly');
+        var store = tx.objectStore(STORE_NAME);
+        var req = store.getAll();
+        req.onsuccess = function () {
+          _queue = req.result || [];
+          resolve();
+        };
+        req.onerror = function () { resolve(); };
+      } catch (e) {
+        console.warn('[syncQueue] Store indisponible, mode mémoire seul');
         resolve();
-      };
-      req.onerror = function () { reject(req.error); };
+      }
     });
   }
 
   /** Ajoute un item dans le store IndexedDB */
   function _addToDB(item) {
-    return new Promise(function (resolve, reject) {
-      if (!_db) return resolve();
+    return new Promise(function (resolve) {
+      if (!_hasStore()) return resolve();
       var tx = _db.transaction(STORE_NAME, 'readwrite');
       var store = tx.objectStore(STORE_NAME);
       var req = store.add(item);
@@ -56,13 +66,15 @@ window.syncQueue = (function () {
 
   /** Supprime un item du store par son id */
   function _removeFromDB(id) {
-    return new Promise(function (resolve, reject) {
-      if (!_db) return resolve();
-      var tx = _db.transaction(STORE_NAME, 'readwrite');
-      var store = tx.objectStore(STORE_NAME);
-      var req = store.delete(id);
-      req.onsuccess = function () { resolve(); };
-      req.onerror = function () { reject(req.error); };
+    return new Promise(function (resolve) {
+      if (!_hasStore()) return resolve();
+      try {
+        var tx = _db.transaction(STORE_NAME, 'readwrite');
+        var store = tx.objectStore(STORE_NAME);
+        var req = store.delete(id);
+        req.onsuccess = function () { resolve(); };
+        req.onerror = function () { resolve(); };
+      } catch (e) { resolve(); }
     });
   }
 
