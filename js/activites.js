@@ -887,17 +887,23 @@
       html += '<div style="display:flex;align-items:center;gap:.4rem;padding:.35rem .5rem;margin-bottom:.25rem;'
         + 'background:' + (isF ? '#e8f0f8' : '#fff3e0') + ';border-radius:8px;border:1px solid ' + (isF ? '#2196F388' : '#FF980088') + '">';
       html += '<span style="flex:1;font-size:.78rem;font-weight:600">' + _studentName(code) + '</span>';
-      html += '<button type="button" data-act="setElevePhase" data-code="' + code + '" data-ph="formatif" '
-        + 'style="padding:.2rem .45rem;border:2px solid var(--bleu2);border-radius:6px;font-size:.65rem;font-weight:700;cursor:pointer;'
-        + 'background:' + (isF ? 'var(--bleu2)' : '#fff') + ';color:' + (isF ? '#fff' : 'var(--bleu2)') + ';'
-        + '-webkit-tap-highlight-color:rgba(0,0,0,.1)">📘 F</button>';
-      html += '<button type="button" data-act="setElevePhase" data-code="' + code + '" data-ph="certificatif" '
-        + 'style="padding:.2rem .45rem;border:2px solid var(--orange);border-radius:6px;font-size:.65rem;font-weight:700;cursor:pointer;'
-        + 'background:' + (isF ? '#fff' : 'var(--orange)') + ';color:' + (isF ? 'var(--orange)' : '#fff') + ';'
-        + '-webkit-tap-highlight-color:rgba(0,0,0,.1)">📙 C</button>';
+      html += '<select data-phselect="' + code + '" style="padding:.25rem .4rem;border:2px solid ' + (isF ? 'var(--bleu2)' : 'var(--orange)')
+        + ';border-radius:6px;font-size:.72rem;font-weight:700;cursor:pointer;background:#fff">'
+        + '<option value="formatif"' + (isF ? ' selected' : '') + '>📘 Formatif</option>'
+        + '<option value="certificatif"' + (!isF ? ' selected' : '') + '>📙 Certificatif</option>'
+        + '</select>';
       html += '</div>';
     });
     list.innerHTML = html;
+    // Écouter les changements de select
+    list.querySelectorAll('select[data-phselect]').forEach(function(sel) {
+      sel.addEventListener('change', function() {
+        var code = sel.dataset.phselect;
+        if (!window._actState.phasesEleves) window._actState.phasesEleves = {};
+        window._actState.phasesEleves[code] = sel.value;
+        _renderDispatch();
+      });
+    });
   }
 
   /** Change la phase d'un élève individuel */
