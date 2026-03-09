@@ -30,6 +30,12 @@
   // État interne
   var _evalState = { actId: null, studentCode: null };
 
+  /** Retourne la phase d'un élève dans une activité (par-élève ou fallback global) */
+  function _phaseEleve(act, code) {
+    if (act.phasesEleves && act.phasesEleves[code]) return act.phasesEleves[code];
+    return act.phase || 'formatif';
+  }
+
   // ── Helpers ──
 
   function _nextId() {
@@ -93,7 +99,10 @@
       if (action === 'toggleEleve')     { _toggleEleve(btn); return; }
       if (action === 'toggleAllComps')  { _toggleAllComps(); return; }
       if (action === 'toggleAllEleves') { _toggleAllEleves(); return; }
+      if (action === 'setElevePhase')   { _setElevePhase(btn); return; }
+      if (action === 'allElevesPhase')  { _allElevesPhase(btn.dataset.ph); return; }
       if (action === 'submitCreate')    { _submitCreate(); return; }
+      if (action === 'switchStuPhase')  { _switchStuPhase(btn); return; }
 
       // Liste
       if (action === 'openCard')    { _openEval(btn.dataset.id); return; }
@@ -150,9 +159,17 @@
         + '</div>'
         + '<div style="display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;margin-top:.4rem;font-size:.75rem;color:var(--gris)">'
         + '<span>📅 ' + _dateFR(act.date) + '</span>'
-        + '<span style="background:' + (act.phase === 'certificatif' ? 'var(--orange)' : 'var(--bleu2)')
-        + ';color:#fff;padding:.1rem .4rem;border-radius:6px;font-size:.65rem;font-weight:700">'
-        + (act.phase === 'certificatif' ? '📙 Certif.' : '📘 Format.') + '</span>'
+        + (function() {
+          var phases = {};
+          (act.eleves || []).forEach(function(code) {
+            var p = (act.phasesEleves && act.phasesEleves[code]) ? act.phasesEleves[code] : act.phase;
+            phases[p] = true;
+          });
+          var hasF = phases['formatif'], hasC = phases['certificatif'];
+          if (hasF && hasC) return '<span style="background:linear-gradient(135deg,var(--bleu2),var(--orange));color:#fff;padding:.1rem .4rem;border-radius:6px;font-size:.65rem;font-weight:700">📘📙 Mixte</span>';
+          if (hasC) return '<span style="background:var(--orange);color:#fff;padding:.1rem .4rem;border-radius:6px;font-size:.65rem;font-weight:700">📙 Certif.</span>';
+          return '<span style="background:var(--bleu2);color:#fff;padding:.1rem .4rem;border-radius:6px;font-size:.65rem;font-weight:700">📘 Format.</span>';
+        })()
         + '<span>👥 ' + nbEleves + '</span>'
         + '<span>🎯 ' + nbComps + ' comp.</span>'
         + '</div>'
@@ -188,16 +205,18 @@
       + _dateFR(act.date) + '</span>';
     body += '</div>';
 
-    // Onglets élèves
+    // Onglets élèves avec badge phase
     body += '<div id="actEvalTabs" style="display:flex;gap:.3rem;overflow-x:auto;padding-bottom:.4rem;margin-bottom:.6rem;'
       + '-webkit-overflow-scrolling:touch">';
     (act.eleves || []).forEach(function(code, i) {
       var isActive = (i === 0);
+      var ePh = _phaseEleve(act, code);
+      var phBadge = (ePh === 'certificatif') ? '📙' : '📘';
       body += '<button type="button" data-act="switchStudent" data-code="' + code + '" '
         + 'class="actStuTab" style="flex-shrink:0;padding:.4rem .7rem;border:2px solid ' + c.bg + ';'
         + 'background:' + (isActive ? c.bg : '#fff') + ';color:' + (isActive ? '#fff' : c.bg) + ';'
         + 'border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap">'
-        + _studentName(code) + '</button>';
+        + phBadge + ' ' + _studentName(code) + '</button>';
     });
     body += '</div>';
 
@@ -241,7 +260,20 @@
     var allComps = (ep === 'EP2') ? (window.COMP_EP2 || []) : (window.COMP_EP3 || []);
     var critsRef = (ep === 'EP2') ? window.CRIT2 : window.CRIT3;
 
-    var html = '';
+    var ePh = _phaseEleve(act, studentCode);
+    var isF = (ePh === 'formatif');
+
+    // Barre phase pour cet élève
+    var html = '<div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.6rem;padding:.4rem .6rem;'
+      + 'background:' + (isF ? '#e8f0f8' : '#fff3e0') + ';border-radius:8px;border:1px solid ' + (isF ? '#2196F366' : '#FF980066') + '">';
+    html += '<span style="font-size:.75rem;font-weight:600;flex:1">' + _studentName(studentCode) + ' — '
+      + (isF ? '📘 Formatif' : '📙 Certificatif') + '</span>';
+    html += '<button type="button" data-act="switchStuPhase" data-code="' + studentCode + '" data-id="' + act.id + '" '
+      + 'style="padding:.2rem .5rem;border:2px solid ' + (isF ? 'var(--orange)' : 'var(--bleu2)') + ';'
+      + 'background:#fff;color:' + (isF ? 'var(--orange)' : 'var(--bleu2)') + ';border-radius:6px;'
+      + 'font-size:.65rem;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,.1)">'
+      + (isF ? '→ Certif.' : '→ Format.') + '</button>';
+    html += '</div>';
 
     (act.competences || []).forEach(function(compCode) {
       var comp = allComps.find(function(x){ return x.code === compCode; });
@@ -370,6 +402,30 @@
   // ACTIONS D'ÉVALUATION
   // ══════════════════════════════════════════════════════════════
 
+  /** Bascule la phase d'un élève dans une activité (depuis l'évaluation) */
+  function _switchStuPhase(btn) {
+    var code = btn.dataset.code;
+    var id = btn.dataset.id;
+    var act = (window.appCfg.activites || []).find(function(a){ return a.id === id; });
+    if (!act) return;
+    if (!act.phasesEleves) act.phasesEleves = {};
+    var cur = _phaseEleve(act, code);
+    act.phasesEleves[code] = (cur === 'formatif') ? 'certificatif' : 'formatif';
+    if (typeof window.saveLocal === 'function') window.saveLocal();
+    // Rafraîchir les onglets élèves
+    var c = COULEURS[act.epreuve] || {bg:'#555'};
+    document.querySelectorAll('.actStuTab').forEach(function(tab) {
+      var tCode = tab.dataset.code;
+      var tPh = _phaseEleve(act, tCode);
+      var tBadge = (tPh === 'certificatif') ? '📙' : '📘';
+      var isActive = (tCode === _evalState.studentCode);
+      tab.innerHTML = tBadge + ' ' + _studentName(tCode);
+      tab.style.background = isActive ? c.bg : '#fff';
+      tab.style.color = isActive ? '#fff' : c.bg;
+    });
+    _renderEvalFor(act, code);
+  }
+
   async function _evalCrit(studentCode, compCode, critEnc, niv, epreuve) {
     var ep = _epForPush(epreuve);
     var ctx = _contextForEpreuve(epreuve);
@@ -385,7 +441,7 @@
 
     window.cur = studentCode;
     var act = (window.appCfg.activites || []).find(function(a){ return a.id === _evalState.actId; });
-    if (act) window.curPhase = act.phase;
+    if (act) window.curPhase = _phaseEleve(act, studentCode);
     if (ep === 'EP2') window.curCtx = ctx; else window.curSit = ctx;
 
     await window.pushVal({
@@ -414,7 +470,7 @@
 
     window.cur = studentCode;
     var act = (window.appCfg.activites || []).find(function(a){ return a.id === _evalState.actId; });
-    if (act) window.curPhase = act.phase;
+    if (act) window.curPhase = _phaseEleve(act, studentCode);
     if (ep === 'EP2') window.curCtx = ctx; else window.curSit = ctx;
 
     await window.pushVal({
@@ -474,8 +530,12 @@
     body += '<div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.75rem">';
     (act.eleves || []).forEach(function(code) {
       var s = (window.students || []).find(function(e){ return e.code === code; });
-      body += '<span style="background:#f0f0f0;padding:.2rem .5rem;border-radius:8px;font-size:.75rem">'
-        + (s ? s.nom + ' ' + (s.prenom || '') : code) + '</span>';
+      var ePh = _phaseEleve(act, code);
+      var phIcon = (ePh === 'certificatif') ? '📙' : '📘';
+      var phBg = (ePh === 'certificatif') ? '#fff3e0' : '#e8f0f8';
+      var phBorder = (ePh === 'certificatif') ? '#FF980066' : '#2196F366';
+      body += '<span style="background:' + phBg + ';border:1px solid ' + phBorder + ';padding:.2rem .5rem;border-radius:8px;font-size:.75rem">'
+        + phIcon + ' ' + (s ? s.nom + ' ' + (s.prenom || '') : code) + '</span>';
     });
     if (!(act.eleves||[]).length) body += '<span style="color:#888;font-size:.78rem">Aucun élève</span>';
     body += '</div>';
@@ -521,8 +581,8 @@
     });
     body += '</div>';
 
-    // Phase
-    body += '<div style="font-weight:700;margin-bottom:.4rem">Phase</div>';
+    // Phase par défaut
+    body += '<div style="font-weight:700;margin-bottom:.4rem">Phase par défaut</div>';
     body += '<div id="actPhaseBtns" style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;margin-bottom:.75rem">';
     body += '<button type="button" data-act="pickPhase" data-ph="formatif" class="actPhBtn" '
       + 'style="padding:.5rem;border:2px solid var(--bleu2);background:var(--bleu3);color:var(--bleu2);'
@@ -583,6 +643,23 @@
     }
     body += '</div></div>';
 
+    // Zone dispatch phases par élève (apparaît quand des élèves sont sélectionnés)
+    body += '<div id="actDispatchZone" style="margin-bottom:.75rem;display:none">';
+    body += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem;flex-wrap:wrap;gap:.3rem">'
+      + '<span style="font-weight:700;font-size:.85rem">📋 Phase par élève</span>'
+      + '<div style="display:flex;gap:.3rem">'
+      + '<button type="button" data-act="allElevesPhase" data-ph="formatif" '
+      + 'style="padding:.25rem .5rem;border:2px solid var(--bleu2);background:var(--bleu3);color:var(--bleu2);'
+      + 'border-radius:6px;font-size:.68rem;font-weight:700;cursor:pointer;'
+      + '-webkit-tap-highlight-color:rgba(0,0,0,.1)">📘 Tous formatif</button>'
+      + '<button type="button" data-act="allElevesPhase" data-ph="certificatif" '
+      + 'style="padding:.25rem .5rem;border:2px solid var(--orange);background:var(--orange2);color:var(--orange);'
+      + 'border-radius:6px;font-size:.68rem;font-weight:700;cursor:pointer;'
+      + '-webkit-tap-highlight-color:rgba(0,0,0,.1)">📙 Tous certif.</button>'
+      + '</div></div>';
+    body += '<div id="actDispatchList"></div>';
+    body += '</div>';
+
     body += '</div>';
 
     var actions = '<button type="button" data-act="submitCreate" '
@@ -591,7 +668,7 @@
 
     window.showModal('📋 Nouvelle activité', body, actions);
 
-    window._actState = { ep: 'EP2', phase: window.curPhase || 'formatif', comps: [], eleves: [] };
+    window._actState = { ep: 'EP2', phase: window.curPhase || 'formatif', comps: [], eleves: [], phasesEleves: {} };
     _pickEp('EP2');
     _pickPhase(window._actState.phase);
   }
@@ -632,6 +709,13 @@
         btn.style.color = isActive ? '#fff' : 'var(--orange)';
       }
     });
+    // Mettre à jour les élèves qui n'ont pas encore de phase individuelle
+    if (window._actState.phasesEleves) {
+      (window._actState.eleves || []).forEach(function(code) {
+        window._actState.phasesEleves[code] = ph;
+      });
+      _renderDispatch();
+    }
   }
 
   function _toggleComp(btn) {
@@ -656,17 +740,22 @@
     var idx = window._actState.eleves.indexOf(code);
     if (idx === -1) {
       window._actState.eleves.push(code);
+      // Phase par défaut pour cet élève
+      if (!window._actState.phasesEleves) window._actState.phasesEleves = {};
+      window._actState.phasesEleves[code] = window._actState.phase;
       btn.style.background = 'var(--bleu2)';
       btn.style.color = '#fff';
       btn.style.borderColor = 'var(--bleu2)';
     } else {
       window._actState.eleves.splice(idx, 1);
+      if (window._actState.phasesEleves) delete window._actState.phasesEleves[code];
       btn.style.background = '#fff';
       btn.style.color = 'inherit';
       btn.style.borderColor = 'var(--gris3)';
     }
     var cnt = document.getElementById('actElvCount');
     if (cnt) cnt.textContent = '(' + window._actState.eleves.length + '/' + (window.students||[]).length + ')';
+    _renderDispatch();
   }
 
   function _toggleAllComps() {
@@ -694,8 +783,10 @@
   function _toggleAllEleves() {
     var btns = document.querySelectorAll('.actElvBtn');
     var allSelected = window._actState.eleves.length === btns.length;
+    if (!window._actState.phasesEleves) window._actState.phasesEleves = {};
     if (allSelected) {
       window._actState.eleves = [];
+      window._actState.phasesEleves = {};
       btns.forEach(function(btn) {
         btn.style.background = '#fff';
         btn.style.color = 'inherit';
@@ -704,7 +795,9 @@
     } else {
       window._actState.eleves = [];
       btns.forEach(function(btn) {
-        window._actState.eleves.push(btn.dataset.code);
+        var code = btn.dataset.code;
+        window._actState.eleves.push(code);
+        window._actState.phasesEleves[code] = window._actState.phase;
         btn.style.background = 'var(--bleu2)';
         btn.style.color = '#fff';
         btn.style.borderColor = 'var(--bleu2)';
@@ -712,6 +805,60 @@
     }
     var cnt = document.getElementById('actElvCount');
     if (cnt) cnt.textContent = '(' + window._actState.eleves.length + '/' + (window.students||[]).length + ')';
+    _renderDispatch();
+  }
+
+  /** Affiche la zone de dispatch (phase par élève) */
+  function _renderDispatch() {
+    var zone = document.getElementById('actDispatchZone');
+    var list = document.getElementById('actDispatchList');
+    if (!zone || !list) return;
+
+    var eleves = window._actState.eleves || [];
+    if (!eleves.length) {
+      zone.style.display = 'none';
+      return;
+    }
+    zone.style.display = 'block';
+
+    if (!window._actState.phasesEleves) window._actState.phasesEleves = {};
+
+    var html = '';
+    eleves.forEach(function(code) {
+      var ph = window._actState.phasesEleves[code] || window._actState.phase;
+      var isF = (ph === 'formatif');
+      html += '<div style="display:flex;align-items:center;gap:.4rem;padding:.35rem .5rem;margin-bottom:.25rem;'
+        + 'background:' + (isF ? '#e8f0f8' : '#fff3e0') + ';border-radius:8px;border:1px solid ' + (isF ? '#2196F388' : '#FF980088') + '">';
+      html += '<span style="flex:1;font-size:.78rem;font-weight:600">' + _studentName(code) + '</span>';
+      html += '<button type="button" data-act="setElevePhase" data-code="' + code + '" data-ph="formatif" '
+        + 'style="padding:.2rem .45rem;border:2px solid var(--bleu2);border-radius:6px;font-size:.65rem;font-weight:700;cursor:pointer;'
+        + 'background:' + (isF ? 'var(--bleu2)' : '#fff') + ';color:' + (isF ? '#fff' : 'var(--bleu2)') + ';'
+        + '-webkit-tap-highlight-color:rgba(0,0,0,.1)">📘 F</button>';
+      html += '<button type="button" data-act="setElevePhase" data-code="' + code + '" data-ph="certificatif" '
+        + 'style="padding:.2rem .45rem;border:2px solid var(--orange);border-radius:6px;font-size:.65rem;font-weight:700;cursor:pointer;'
+        + 'background:' + (isF ? '#fff' : 'var(--orange)') + ';color:' + (isF ? 'var(--orange)' : '#fff') + ';'
+        + '-webkit-tap-highlight-color:rgba(0,0,0,.1)">📙 C</button>';
+      html += '</div>';
+    });
+    list.innerHTML = html;
+  }
+
+  /** Change la phase d'un élève individuel */
+  function _setElevePhase(btn) {
+    var code = btn.dataset.code;
+    var ph = btn.dataset.ph;
+    if (!window._actState.phasesEleves) window._actState.phasesEleves = {};
+    window._actState.phasesEleves[code] = ph;
+    _renderDispatch();
+  }
+
+  /** Met tous les élèves sélectionnés sur la même phase */
+  function _allElevesPhase(ph) {
+    if (!window._actState.phasesEleves) window._actState.phasesEleves = {};
+    (window._actState.eleves || []).forEach(function(code) {
+      window._actState.phasesEleves[code] = ph;
+    });
+    _renderDispatch();
   }
 
   function _submitCreate() {
@@ -725,7 +872,9 @@
     var act = create({
       titre: titre, date: date, epreuve: st.ep,
       competences: st.comps, evaluateur: (window.cfg && window.cfg.nomProf) || '',
-      phase: st.phase, eleves: st.eleves, obs: ''
+      phase: st.phase, eleves: st.eleves,
+      phasesEleves: st.phasesEleves || {},
+      obs: ''
     });
 
     window.closeModal();
@@ -750,7 +899,9 @@
       id: _nextId(), titre: data.titre || '', date: data.date || _today(),
       epreuve: data.epreuve || 'EP2', contexte: data.contexte || '',
       competences: data.competences || [], evaluateur: data.evaluateur || '',
-      phase: data.phase || 'formatif', eleves: data.eleves || [], obs: data.obs || ''
+      phase: data.phase || 'formatif', eleves: data.eleves || [],
+      phasesEleves: data.phasesEleves || {},
+      obs: data.obs || ''
     };
     window.appCfg.activites.push(act);
     if (typeof window.saveLocal === 'function') window.saveLocal();

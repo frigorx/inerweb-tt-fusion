@@ -11,17 +11,20 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<!-- Modules Fusion -->
-<script src="js/sync-queue.js" defer></script>
-<script src="js/jury.js" defer></script>
-<script src="js/phases.js" defer></script>
-<script src="js/exposition.js" defer></script>
-<script src="js/impossibilites.js" defer></script>
-<script src="js/activites.js" defer></script>
-<script src="js/tache-complexe.js" defer></script>
-<script src="js/signatures.js" defer></script>
-<script src="js/rapport-pdf.js" defer></script>
-<script src="js/fusion-eval.js" defer></script>
+<!-- Modules Fusion — cache-bust automatique -->
+<script>
+(function(){
+  var v = Date.now();
+  var mods = ['sync-queue','jury','phases','exposition','impossibilites',
+              'activites','tache-complexe','signatures','rapport-pdf','fusion-eval'];
+  mods.forEach(function(m){
+    var s = document.createElement('script');
+    s.src = 'js/' + m + '.js?v=' + v;
+    s.defer = true;
+    document.head.appendChild(s);
+  });
+})();
+</script>
 <style>
 /* RADIOGUIDAGE CSS
    [1] Variables & Reset
