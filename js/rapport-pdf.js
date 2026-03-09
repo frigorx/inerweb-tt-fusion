@@ -435,6 +435,99 @@ window.rapportModule = (function () {
     renderEpreuve('EP2', 'EP2 \u2014 R\u00e9alisation (coeff. 6)', window.COMP_EP2 || []);
     renderEpreuve('EP3', 'EP3 \u2014 Mise en service (coeff. 4)', window.COMP_EP3 || []);
 
+    /* ── Bilan PFMP (impossibilités + rattrapage) ──────────── */
+    if (window.imposModule || window.tacheModule) {
+      y = checkPage(doc, y, 30);
+      doc.setFontSize(11);
+      doc.setTextColor.apply(doc, BLEU);
+      doc.text('Bilan PFMP', MG, y);
+      y += 8;
+      doc.setFontSize(9);
+      doc.setTextColor.apply(doc, NOIR);
+
+      // Impossibilités
+      if (window.imposModule) {
+        ['pfmp1', 'pfmp2'].forEach(function(pn) {
+          var num = pn.replace('pfmp', '');
+          if (window.imposModule.has(code, num)) {
+            y = checkPage(doc, y, 12);
+            doc.setFont(undefined, 'bold');
+            doc.text('Impossibilit\u00e9s ' + pn.toUpperCase() + ' :', MG, y);
+            y += 5;
+            doc.setFont(undefined, 'normal');
+            var pd = (window.pfmpData[code] || {}).impossibilites || {};
+            var imp = pd[pn] || {};
+            if (imp.commentaire) {
+              doc.text(imp.commentaire.substring(0, 90), MG + 4, y);
+              y += 5;
+            }
+          }
+        });
+      }
+
+      // Tâche complexe / oral rattrapage
+      if (window.tacheModule && window.tacheModule.hasRattrapage(code)) {
+        y = checkPage(doc, y, 14);
+        doc.setFont(undefined, 'bold');
+        doc.text('Oral de rattrapage (t\u00e2che complexe) :', MG, y);
+        y += 5;
+        doc.setFont(undefined, 'normal');
+        var lvs = window.tacheModule.getLevels(code);
+        var lvArr = [];
+        for (var lk in lvs) { if (lvs.hasOwnProperty(lk)) lvArr.push(lk + ' : ' + lvs[lk]); }
+        if (lvArr.length) { doc.text(lvArr.join(', '), MG + 4, y); y += 5; }
+      }
+      y += 6;
+    }
+
+    /* ── Évaluation tuteur (si disponible) ───────────────── */
+    if (window.pfmpData[code] && window.pfmpData[code].evalTuteur) {
+      var et = window.pfmpData[code].evalTuteur;
+      ['pfmp1', 'pfmp2'].forEach(function(pn) {
+        if (!et[pn] || !et[pn].validee) return;
+        y = checkPage(doc, y, 35);
+        doc.setFontSize(11);
+        doc.setTextColor.apply(doc, BLEU);
+        doc.text('\u00c9valuation tuteur \u2014 ' + pn.toUpperCase(), MG, y);
+        y += 8;
+        doc.setFontSize(9);
+        doc.setTextColor.apply(doc, NOIR);
+
+        // Critères globaux (assiduité, initiative, qualité, comportement)
+        var crit = et[pn].criteres || {};
+        var critLabels = {assiduite:'Assiduit\u00e9', initiative:'Initiative', qualite:'Qualit\u00e9 du travail', comportement:'Comportement'};
+        for (var ck in critLabels) {
+          if (critLabels.hasOwnProperty(ck) && crit[ck]) {
+            doc.text(critLabels[ck] + ' : ' + '\u2605'.repeat(crit[ck]) + '\u2606'.repeat(5 - crit[ck]), MG + 4, y);
+            y += 5;
+          }
+        }
+
+        // Compétences évaluées par le tuteur
+        var comps = et[pn].competences || {};
+        var compArr = [];
+        for (var cc in comps) { if (comps.hasOwnProperty(cc)) compArr.push(cc + ' : ' + comps[cc]); }
+        if (compArr.length) {
+          doc.text('Comp\u00e9tences : ' + compArr.join(', '), MG + 4, y);
+          y += 5;
+        }
+
+        // Appréciation
+        if (et[pn].appreciation) {
+          y = checkPage(doc, y, 10);
+          doc.text('Appr\u00e9ciation : ' + et[pn].appreciation.substring(0, 100), MG + 4, y);
+          y += 5;
+        }
+
+        // Tuteur
+        if (et[pn].tuteurNom) {
+          doc.text('Tuteur : ' + et[pn].tuteurNom, MG + 4, y);
+          y += 5;
+        }
+        y += 4;
+      });
+    }
+
     /* ── Bloc jury (si disponible) ─────────────────────────── */
     if (window.juryModule) {
       y = checkPage(doc, y, 40);
@@ -449,7 +542,7 @@ window.rapportModule = (function () {
       for (var j = 0; j < jurys.length; j++) {
         var info = window.juryModule.getForPDF(jurys[j]);
         if (!info || !info.membres.length) continue;
-        y = checkPage(doc, y, 10 + info.membres.length * 6);
+        y = checkPage(doc, y, 10 + info.membres.length * 10);
         doc.setFont(undefined, 'bold');
         doc.text(info.type + ' \u2014 ' + info.date, MG, y);
         y += 6;
@@ -457,25 +550,85 @@ window.rapportModule = (function () {
         for (var m = 0; m < info.membres.length; m++) {
           var mb = info.membres[m];
           doc.text(mb.nom + ' (' + mb.qualite + ', ' + mb.statut + ')', MG + 4, y);
-          // Ligne de signature
-          doc.line(MG + 100, y, MG + 160, y);
-          y += 6;
+          // Zone signature (cadre)
+          doc.setDrawColor.apply(doc, GRIS);
+          doc.rect(MG + 100, y - 4, 60, 8);
+          doc.setFontSize(7);
+          doc.setTextColor.apply(doc, GRIS);
+          doc.text('Signature', MG + 102, y - 1);
+          doc.setFontSize(9);
+          doc.setTextColor.apply(doc, NOIR);
+
+          // Si signature canvas disponible
+          if (window.sigModule) {
+            var sigData = window.sigModule.get(code, jurys[j] + '_' + m);
+            if (sigData) {
+              try { doc.addImage(sigData, 'PNG', MG + 100, y - 4, 60, 8); } catch(e) {}
+            }
+          }
+          y += 10;
         }
         y += 4;
       }
     }
 
-    /* ── Observations ──────────────────────────────────────── */
-    y = checkPage(doc, y, 20);
+    /* ── Observations (avec espace signature) ──────────────── */
+    y = checkPage(doc, y, 50);
     doc.setFontSize(10);
     doc.setTextColor.apply(doc, BLEU);
-    doc.text('Observations', MG, y);
+    doc.text('Observations du jury', MG, y);
     y += 8;
     doc.setDrawColor.apply(doc, GRIS);
     doc.rect(MG, y - 4, pw(doc), 30);
-    doc.setFontSize(8);
-    doc.setTextColor.apply(doc, GRIS);
-    doc.text('(espace r\u00e9serv\u00e9 aux observations du jury)', MG + 2, y + 2);
+
+    // Pré-remplir les observations existantes
+    var allObs = [];
+    (window.COMP_EP2 || []).concat(window.COMP_EP3 || []).forEach(function(comp) {
+      var o = window.getObs(code, comp.code.startsWith('C4') || comp.code.startsWith('C5') || comp.code.startsWith('C6') ? 'EP3' : 'EP2', comp.code);
+      if (o) allObs.push(comp.code + ' : ' + o);
+    });
+    if (allObs.length) {
+      doc.setFontSize(7);
+      doc.setTextColor.apply(doc, GRIS);
+      var obsY = y;
+      allObs.slice(0, 5).forEach(function(o) {
+        doc.text(o.substring(0, 100), MG + 2, obsY);
+        obsY += 4;
+      });
+    } else {
+      doc.setFontSize(8);
+      doc.setTextColor.apply(doc, GRIS);
+      doc.text('(espace r\u00e9serv\u00e9 aux observations du jury)', MG + 2, y + 2);
+    }
+    y += 34;
+
+    /* ── Signatures finales ──────────────────────────────────── */
+    y = checkPage(doc, y, 30);
+    doc.setFontSize(9);
+    doc.setTextColor.apply(doc, NOIR);
+
+    var sigX1 = MG, sigX2 = MG + pw(doc) / 2 + 5;
+    doc.text('Le pr\u00e9sident du jury :', sigX1, y);
+    doc.text('Date :', sigX2, y);
+    y += 4;
+    doc.setDrawColor.apply(doc, GRIS);
+    doc.rect(sigX1, y, pw(doc) / 2 - 5, 18);
+    doc.rect(sigX2, y, pw(doc) / 2 - 5, 18);
+    y += 22;
+
+    doc.text('Le candidat (signature) :', sigX1, y);
+    doc.text('L\'\u00e9valuateur :', sigX2, y);
+    y += 4;
+    doc.rect(sigX1, y, pw(doc) / 2 - 5, 18);
+    doc.rect(sigX2, y, pw(doc) / 2 - 5, 18);
+
+    // Insérer signatures canvas si disponibles
+    if (window.pfmpData[code] && window.pfmpData[code].signatures) {
+      var sigs = window.pfmpData[code].signatures;
+      if (sigs.candidat) {
+        try { doc.addImage(sigs.candidat, 'PNG', sigX1 + 1, y + 1, pw(doc) / 2 - 7, 16); } catch(e) {}
+      }
+    }
 
     /* ── Footers et sauvegarde ─────────────────────────────── */
     addFooters(doc);

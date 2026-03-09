@@ -16,7 +16,8 @@
 (function(){
   var v = Date.now();
   var mods = ['sync-queue','jury','phases','exposition','impossibilites',
-              'activites','photos','tache-complexe','signatures','rapport-pdf','fusion-eval'];
+              'activites','photos','tache-complexe','signatures','rapport-pdf','fusion-eval',
+              'historique','eval-tuteur','alertes','export-excel','radar'];
   mods.forEach(function(m){
     var s = document.createElement('script');
     s.src = 'js/' + m + '.js?v=' + v;
@@ -1104,7 +1105,7 @@ function compBlock(comp,ep,ctx){
   const epLocked=notes[cur]?.[ep]?.cloture;
   // Verrouillage par compétence
   const compKey=`${cur}|${ep}|${comp.code}`;
-  const compLocked=compLocks[compKey]||false;
+  const compLocked=(curPhase==='certificatif')&&(compLocks[compKey]||false);
   const isLocked=epLocked||compLocked;
   const hasValue=lv&&lv!=='NE';
   
@@ -1178,8 +1179,8 @@ function getObs(code,ep,comp){
 async function setCrit(comp,critEnc,niv,ep){
   if(notes[cur]?.[ep]?.cloture){toast('Épreuve clôturée','err');return;}
   const compKey=`${cur}|${ep}|${comp}`;
-  if(compLocks[compKey]){toast('Compétence verrouillée — cliquez 🔓 pour modifier','err');return;}
-  
+  if(curPhase==='certificatif'&&compLocks[compKey]){toast('Compétence verrouillée — cliquez 🔓 pour modifier','err');return;}
+
   const crit=decodeURIComponent(critEnc);
   const currentVal=getVal(cur,ep,comp,crit);
   // Toggle: si même niveau, on efface (remet NE)
@@ -1205,8 +1206,8 @@ async function setCrit(comp,critEnc,niv,ep){
 async function setLv(comp,niv,ep){
   if(notes[cur]?.[ep]?.cloture){toast('Épreuve clôturée','err');return;}
   const compKey=`${cur}|${ep}|${comp}`;
-  if(compLocks[compKey]){toast('Compétence verrouillée — cliquez 🔓 pour modifier','err');return;}
-  
+  if(curPhase==='certificatif'&&compLocks[compKey]){toast('Compétence verrouillée — cliquez 🔓 pour modifier','err');return;}
+
   const currentLv=getLv(cur,ep,comp);
   // Toggle: si même niveau, on efface (remet NE)
   const newNiv=(currentLv===niv)?'NE':niv;
@@ -1234,8 +1235,8 @@ async function setLv(comp,niv,ep){
   toast(`${comp} → ${newNiv}`,'ok');
   await pushVal({epreuve:ep,competence:comp,critere:'',niveau:newNiv,contexte:ep==='EP2'?curCtx:curSit});
   
-  // AUTO-VERROUILLAGE si niveau != NE
-  if(newNiv!=='NE'){
+  // AUTO-VERROUILLAGE si niveau != NE — uniquement en phase certificatif
+  if(curPhase==='certificatif'&&newNiv!=='NE'){
     compLocks[compKey]=true;
     saveLocal();
     // Re-render pour afficher le cadenas
