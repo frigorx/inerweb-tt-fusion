@@ -2,6 +2,9 @@
  * activites.js — Module activités pédagogiques (séances d'évaluation)
  * Version Fusion — UX mobile-first + évaluation inline
  *
+ * Utilise la DÉLÉGATION D'ÉVÉNEMENTS (pas de onclick inline)
+ * pour compatibilité maximale mobile/tablette.
+ *
  * Globales : appCfg, students, COMP_EP2, COMP_EP3, CRIT2, CRIT3,
  *            NV_LBL, validations, notes, compLocks, customCriteria,
  *            curPhase, cfg, saveLocal(), toast(), pushVal(),
@@ -24,7 +27,7 @@
     'EP3-C': 'EP3-C — Documents'
   };
 
-  // État d'évaluation en cours
+  // État interne
   var _evalState = { actId: null, studentCode: null };
 
   // ── Helpers ──
@@ -57,13 +60,11 @@
     });
   }
 
-  /** Détermine le contexte pour pushVal selon l'épreuve */
   function _contextForEpreuve(epr) {
     if (epr === 'EP2') return 'atelier';
-    return epr.replace('EP3-', ''); // A, B ou C
+    return epr.replace('EP3-', '');
   }
 
-  /** Épreuve simplifiée pour pushVal (EP2 ou EP3) */
   function _epForPush(epr) {
     return epr.startsWith('EP3') ? 'EP3' : 'EP2';
   }
@@ -74,7 +75,44 @@
     return (s.nom || '') + ' ' + (s.prenom ? s.prenom.charAt(0) + '.' : '');
   }
 
-  // ── Rendu liste ──
+  // ══════════════════════════════════════════════════════════════
+  // DÉLÉGATION D'ÉVÉNEMENTS GLOBALE
+  // ══════════════════════════════════════════════════════════════
+
+  /** Installé une seule fois au chargement du module */
+  function _installDelegation() {
+    document.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-act]');
+      if (!btn) return;
+      var action = btn.dataset.act;
+
+      // Création
+      if (action === 'pickEp')          { _pickEp(btn.dataset.ep); return; }
+      if (action === 'pickPhase')       { _pickPhase(btn.dataset.ph); return; }
+      if (action === 'toggleComp')      { _toggleComp(btn); return; }
+      if (action === 'toggleEleve')     { _toggleEleve(btn); return; }
+      if (action === 'toggleAllComps')  { _toggleAllComps(); return; }
+      if (action === 'toggleAllEleves') { _toggleAllEleves(); return; }
+      if (action === 'submitCreate')    { _submitCreate(); return; }
+
+      // Liste
+      if (action === 'openCard')    { _openEval(btn.dataset.id); return; }
+      if (action === 'showCreate')  { showCreateModal(); return; }
+      if (action === 'deleteAct')   { del(btn.dataset.id); window.closeModal(); return; }
+
+      // Évaluation
+      if (action === 'switchStudent') { _switchStudent(btn.dataset.code); return; }
+      if (action === 'toggleBlock')   { _toggleBlock(btn); return; }
+      if (action === 'evalCrit')      { _evalCrit(btn.dataset.stu, btn.dataset.comp, btn.dataset.crit, btn.dataset.niv, btn.dataset.epr); return; }
+      if (action === 'evalGlobal')    { _evalGlobal(btn.dataset.stu, btn.dataset.comp, btn.dataset.niv, btn.dataset.epr); return; }
+      if (action === 'showDetail')    { _showDetail(btn.dataset.id); return; }
+      if (action === 'openEvalFromDetail') { window.closeModal(); var id = btn.dataset.id; setTimeout(function(){ _openEval(id); }, 200); return; }
+    });
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // RENDU LISTE
+  // ══════════════════════════════════════════════════════════════
 
   function renderList(container) {
     var el = typeof container === 'string' ? document.querySelector(container) : container;
@@ -101,9 +139,9 @@
       });
       var nomsStr = noms.join(', ') + (nbEleves > 3 ? ' +' + (nbEleves - 3) : '');
 
-      return '<div style="background:' + c.light + ';border-left:4px solid ' + c.bg
+      return '<div data-act="openCard" data-id="' + act.id + '" style="background:' + c.light + ';border-left:4px solid ' + c.bg
         + ';border-radius:10px;padding:.75rem 1rem;margin-bottom:.5rem;'
-        + 'box-shadow:0 1px 4px rgba(0,0,0,.06);cursor:pointer" onclick="activModule._openEval(\'' + act.id + '\')">'
+        + 'box-shadow:0 1px 4px rgba(0,0,0,.06);cursor:pointer">'
         + '<div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem">'
         + '<strong style="font-size:.88rem;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
         + (act.titre || 'Sans titre') + '</strong>'
@@ -124,27 +162,22 @@
   }
 
   // ══════════════════════════════════════════════════════════════
-  // ÉVALUATION INLINE — Vue principale
+  // ÉVALUATION INLINE
   // ══════════════════════════════════════════════════════════════
 
   function _openEval(id) {
     var act = (window.appCfg.activites || []).find(function(a){ return a.id === id; });
     if (!act) return;
-    if (!(act.eleves || []).length) {
-      _showDetail(id);
-      return;
-    }
+    if (!(act.eleves || []).length) { _showDetail(id); return; }
 
     _evalState.actId = id;
     _evalState.studentCode = act.eleves[0];
 
     var c = COULEURS[act.epreuve] || {bg:'#555',light:'#f5f5f5'};
-    var ep = _epForPush(act.epreuve);
-    var ctx = _contextForEpreuve(act.epreuve);
 
     var body = '<div id="actEvalRoot" style="font-size:.85rem">';
 
-    // ── En-tête : infos activité ──
+    // En-tête
     body += '<div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.6rem">';
     body += '<span style="background:' + c.bg + ';color:#fff;padding:.15rem .5rem;border-radius:8px;font-weight:700;font-size:.72rem">'
       + act.epreuve + '</span>';
@@ -155,33 +188,31 @@
       + _dateFR(act.date) + '</span>';
     body += '</div>';
 
-    // ── Onglets élèves ──
+    // Onglets élèves
     body += '<div id="actEvalTabs" style="display:flex;gap:.3rem;overflow-x:auto;padding-bottom:.4rem;margin-bottom:.6rem;'
       + '-webkit-overflow-scrolling:touch">';
     (act.eleves || []).forEach(function(code, i) {
       var isActive = (i === 0);
-      body += '<button type="button" class="actStuTab" data-code="' + code + '" '
-        + 'onclick="activModule._switchStudent(\'' + code + '\')" '
-        + 'style="flex-shrink:0;padding:.4rem .7rem;border:2px solid ' + c.bg + ';'
+      body += '<button type="button" data-act="switchStudent" data-code="' + code + '" '
+        + 'class="actStuTab" style="flex-shrink:0;padding:.4rem .7rem;border:2px solid ' + c.bg + ';'
         + 'background:' + (isActive ? c.bg : '#fff') + ';color:' + (isActive ? '#fff' : c.bg) + ';'
-        + 'border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .15s">'
+        + 'border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap">'
         + _studentName(code) + '</button>';
     });
     body += '</div>';
 
-    // ── Zone évaluation (sera remplie dynamiquement) ──
+    // Zone évaluation
     body += '<div id="actEvalZone"></div>';
-
     body += '</div>';
 
     var actions = '<div style="display:flex;gap:.4rem">'
-      + '<button onclick="activModule._showDetail(\'' + act.id + '\')" class="btn btn-ghost btn-sm" style="flex:1">ℹ️ Détails</button>'
-      + '<button onclick="closeModal()" class="btn btn-primary btn-sm" style="flex:1">✅ Terminé</button>'
+      + '<button data-act="showDetail" data-id="' + act.id + '" type="button" style="flex:1;padding:.5rem;border:1px solid var(--gris3);'
+      + 'background:#fff;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer">ℹ️ Détails</button>'
+      + '<button type="button" style="flex:1;padding:.5rem;border:none;background:var(--bleu2);color:#fff;'
+      + 'border-radius:8px;font-size:.8rem;font-weight:700;cursor:pointer" onclick="closeModal()">✅ Terminé</button>'
       + '</div>';
 
     window.showModal('📋 ' + (act.titre || 'Activité'), body, actions);
-
-    // Render l'évaluation pour le premier élève
     _renderEvalFor(act, act.eleves[0]);
   }
 
@@ -191,7 +222,6 @@
     if (!act) return;
     var c = COULEURS[act.epreuve] || {bg:'#555'};
 
-    // Mettre à jour les onglets
     document.querySelectorAll('.actStuTab').forEach(function(btn) {
       var isActive = btn.dataset.code === code;
       btn.style.background = isActive ? c.bg : '#fff';
@@ -201,7 +231,6 @@
     _renderEvalFor(act, code);
   }
 
-  /** Rend la grille d'évaluation pour un élève dans l'activité */
   function _renderEvalFor(act, studentCode) {
     var zone = document.getElementById('actEvalZone');
     if (!zone) return;
@@ -220,32 +249,29 @@
 
       var lv = window.getLv(studentCode, ep, compCode);
       var lvDisplay = lv || 'NE';
-      var lvBase = (lv && lv.startsWith('NE-')) ? 'ne' : (lv ? lv.toLowerCase() : 'ne');
       var lvcls = 'lv-' + (lv ? lv.toLowerCase().replace('-', '-') : 'ne');
 
-      // Critères pour ce contexte
       var crits = (critsRef && critsRef[compCode]) ? (critsRef[compCode][ctx] || []) : [];
       var customCrits = (window.customCriteria && window.customCriteria[studentCode])
         ? ((window.customCriteria[studentCode][ep] || {})[compCode] || []) : [];
       var allCrits = crits.concat(customCrits);
 
-      // ── Bloc compétence ──
-      html += '<div class="comp-block" data-comp="' + compCode + '" style="margin-bottom:.5rem;border:1px solid ' + c.bg + '33;border-radius:10px;overflow:hidden">';
+      var startOpen = (act.competences || []).length <= 2;
 
-      // En-tête cliquable
-      html += '<div onclick="activModule._toggleBlock(this)" style="display:flex;align-items:center;gap:.4rem;padding:.5rem .7rem;'
-        + 'background:' + c.light + ';cursor:pointer;user-select:none">';
+      // Bloc compétence
+      html += '<div style="margin-bottom:.5rem;border:1px solid ' + c.bg + '33;border-radius:10px;overflow:hidden">';
+
+      // En-tête
+      html += '<div data-act="toggleBlock" style="display:flex;align-items:center;gap:.4rem;padding:.5rem .7rem;'
+        + 'background:' + c.light + ';cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,.1)">';
       html += '<span style="font-weight:800;color:' + c.bg + ';font-size:.82rem">' + compCode + '</span>';
       html += '<span style="flex:1;font-size:.78rem;color:#333">' + comp.nom + '</span>';
       html += '<span class="badge ' + lvcls + '" style="font-size:.7rem;font-weight:700;padding:.15rem .4rem;border-radius:6px">' + lvDisplay + '</span>';
-      html += '<span style="font-size:.7rem;transition:transform .2s">▼</span>';
+      html += '<span class="actArrow" style="font-size:.7rem">' + (startOpen ? '▲' : '▼') + '</span>';
       html += '</div>';
 
-      // Corps (fermé par défaut si >2 compétences, ouvert sinon)
-      var startOpen = (act.competences || []).length <= 2;
+      // Corps
       html += '<div class="actEvalBody" style="padding:.5rem .7rem;display:' + (startOpen ? 'block' : 'none') + '">';
-
-      // Description complète
       html += '<div style="font-size:.72rem;color:var(--gris);margin-bottom:.4rem;font-style:italic">' + comp.full + '</div>';
 
       // Critères
@@ -254,14 +280,16 @@
         allCrits.forEach(function(cr) {
           var cv = window.getVal(studentCode, ep, compCode, cr);
           html += '<div style="display:flex;align-items:center;gap:.3rem;margin-bottom:.3rem;flex-wrap:wrap">';
-          html += '<span style="flex:1;min-width:120px;font-size:.72rem;color:#444">' + cr + '</span>';
+          html += '<span style="flex:1;min-width:100px;font-size:.72rem;color:#444">' + cr + '</span>';
           html += '<div style="display:flex;gap:.15rem">';
           ['NE','NA','EC','M','PM'].forEach(function(n) {
             var sel = (cv === n);
-            html += '<button type="button" class="actCritBtn" '
-              + 'onclick="activModule._evalCrit(\'' + studentCode + '\',\'' + compCode + '\',\'' + encodeURIComponent(cr) + '\',\'' + n + '\',\'' + act.epreuve + '\')" '
+            html += '<button type="button" data-act="evalCrit" '
+              + 'data-stu="' + studentCode + '" data-comp="' + compCode + '" '
+              + 'data-crit="' + encodeURIComponent(cr) + '" data-niv="' + n + '" '
+              + 'data-epr="' + act.epreuve + '" '
               + 'style="padding:.2rem .35rem;border:1.5px solid;border-radius:5px;font-size:.65rem;font-weight:700;'
-              + 'min-width:28px;cursor:pointer;transition:all .15s;'
+              + 'min-width:28px;cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,.1);'
               + _btnStyle(n, sel) + '">'
               + n + '</button>';
           });
@@ -275,10 +303,11 @@
       html += '<span style="font-weight:700;font-size:.75rem;margin-right:.3rem">Niveau global :</span>';
       ['NE','NA','EC','M','PM'].forEach(function(n) {
         var sel = (lv === n);
-        html += '<button type="button" class="actGlobBtn" '
-          + 'onclick="activModule._evalGlobal(\'' + studentCode + '\',\'' + compCode + '\',\'' + n + '\',\'' + act.epreuve + '\')" '
+        html += '<button type="button" data-act="evalGlobal" '
+          + 'data-stu="' + studentCode + '" data-comp="' + compCode + '" '
+          + 'data-niv="' + n + '" data-epr="' + act.epreuve + '" '
           + 'style="padding:.25rem .45rem;border:2px solid;border-radius:6px;font-size:.72rem;font-weight:800;'
-          + 'min-width:32px;cursor:pointer;transition:all .15s;'
+          + 'min-width:32px;cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,.1);'
           + _btnStyle(n, sel) + '">'
           + n + '</button>';
       });
@@ -286,13 +315,13 @@
 
       // Observation
       var obs = window.getObs(studentCode, ep, compCode);
-      html += '<textarea placeholder="Observation ' + compCode + '..." rows="1" '
-        + 'onblur="activModule._saveObs(\'' + studentCode + '\',\'' + compCode + '\',\'' + act.epreuve + '\',this.value)" '
+      html += '<textarea data-obsstu="' + studentCode + '" data-obscomp="' + compCode + '" data-obsepr="' + act.epreuve + '" '
+        + 'placeholder="Observation ' + compCode + '..." rows="1" '
         + 'style="width:100%;margin-top:.3rem;padding:.3rem .5rem;border:1px solid #ddd;border-radius:6px;font-size:.72rem;'
         + 'resize:vertical;box-sizing:border-box">' + (obs || '') + '</textarea>';
 
-      html += '</div>'; // fin actEvalBody
-      html += '</div>'; // fin comp-block
+      html += '</div>'; // fin body
+      html += '</div>'; // fin bloc
     });
 
     if (!html) {
@@ -300,9 +329,15 @@
     }
 
     zone.innerHTML = html;
+
+    // Écouter les blur sur les textareas d'observation
+    zone.querySelectorAll('textarea[data-obsstu]').forEach(function(ta) {
+      ta.addEventListener('blur', function() {
+        _saveObs(ta.dataset.obsstu, ta.dataset.obscomp, ta.dataset.obsepr, ta.value);
+      });
+    });
   }
 
-  /** Style inline pour les boutons d'évaluation selon le niveau */
   function _btnStyle(niv, selected) {
     var colors = {
       'NE':  {bg:'#e0e0e0', fg:'#888', border:'#ccc'},
@@ -321,7 +356,7 @@
   function _toggleBlock(hdr) {
     var body = hdr.nextElementSibling;
     if (!body) return;
-    var arrow = hdr.querySelector('span:last-child');
+    var arrow = hdr.querySelector('.actArrow');
     if (body.style.display === 'none') {
       body.style.display = 'block';
       if (arrow) arrow.textContent = '▲';
@@ -332,20 +367,17 @@
   }
 
   // ══════════════════════════════════════════════════════════════
-  // ACTIONS D'ÉVALUATION — Sauvegarde dans validations[]
+  // ACTIONS D'ÉVALUATION
   // ══════════════════════════════════════════════════════════════
 
-  /** Évalue un critère pour un élève (équivalent de setCrit) */
   async function _evalCrit(studentCode, compCode, critEnc, niv, epreuve) {
     var ep = _epForPush(epreuve);
     var ctx = _contextForEpreuve(epreuve);
     var crit = decodeURIComponent(critEnc);
 
-    // Toggle : même niveau = efface
     var currentVal = window.getVal(studentCode, ep, compCode, crit);
     var newNiv = (currentVal === niv) ? 'NE' : niv;
 
-    // Sauvegarder via pushVal en basculant temporairement cur
     var savedCur = window.cur;
     var savedPhase = window.curPhase;
     var savedCtx = window.curCtx;
@@ -354,28 +386,20 @@
     window.cur = studentCode;
     var act = (window.appCfg.activites || []).find(function(a){ return a.id === _evalState.actId; });
     if (act) window.curPhase = act.phase;
-    if (ep === 'EP2') window.curCtx = ctx;
-    else window.curSit = ctx;
+    if (ep === 'EP2') window.curCtx = ctx; else window.curSit = ctx;
 
     await window.pushVal({
-      epreuve: ep,
-      competence: compCode,
-      critere: crit,
-      niveau: newNiv,
-      contexte: ctx
+      epreuve: ep, competence: compCode, critere: crit, niveau: newNiv, contexte: ctx
     });
 
-    // Restaurer
     window.cur = savedCur;
     window.curPhase = savedPhase;
     window.curCtx = savedCtx;
     window.curSit = savedSit;
 
-    // Rafraîchir la vue
     if (act) _renderEvalFor(act, studentCode);
   }
 
-  /** Évalue le niveau global d'une compétence (équivalent de setLv) */
   async function _evalGlobal(studentCode, compCode, niv, epreuve) {
     var ep = _epForPush(epreuve);
     var ctx = _contextForEpreuve(epreuve);
@@ -391,15 +415,10 @@
     window.cur = studentCode;
     var act = (window.appCfg.activites || []).find(function(a){ return a.id === _evalState.actId; });
     if (act) window.curPhase = act.phase;
-    if (ep === 'EP2') window.curCtx = ctx;
-    else window.curSit = ctx;
+    if (ep === 'EP2') window.curCtx = ctx; else window.curSit = ctx;
 
     await window.pushVal({
-      epreuve: ep,
-      competence: compCode,
-      critere: '',
-      niveau: newNiv,
-      contexte: ctx
+      epreuve: ep, competence: compCode, critere: '', niveau: newNiv, contexte: ctx
     });
 
     window.cur = savedCur;
@@ -410,27 +429,19 @@
     if (act) _renderEvalFor(act, studentCode);
   }
 
-  /** Sauvegarde une observation */
   async function _saveObs(studentCode, compCode, epreuve, txt) {
     if (!txt || !txt.trim()) return;
     var ep = _epForPush(epreuve);
-
     var savedCur = window.cur;
     window.cur = studentCode;
-
     await window.pushVal({
-      epreuve: ep,
-      competence: compCode,
-      critere: '__obs__',
-      niveau: txt,
-      contexte: ''
+      epreuve: ep, competence: compCode, critere: '__obs__', niveau: txt, contexte: ''
     });
-
     window.cur = savedCur;
   }
 
   // ══════════════════════════════════════════════════════════════
-  // DÉTAIL (info seule, sans évaluation)
+  // DÉTAIL (info seule)
   // ══════════════════════════════════════════════════════════════
 
   function _showDetail(id) {
@@ -475,15 +486,21 @@
     body += '</div>';
 
     var actions = '<div style="display:flex;gap:.4rem">'
-      + '<button onclick="activModule.delete(\'' + act.id + '\');closeModal()" class="btn btn-rouge btn-sm" style="flex:1">🗑️ Supprimer</button>'
-      + ((act.eleves||[]).length ? '<button onclick="closeModal();setTimeout(function(){activModule._openEval(\'' + act.id + '\')},200)" class="btn btn-primary btn-sm" style="flex:1">📝 Évaluer</button>' : '')
-      + '</div>';
+      + '<button data-act="deleteAct" data-id="' + act.id + '" type="button" '
+      + 'style="flex:1;padding:.5rem;border:none;background:var(--rouge);color:#fff;border-radius:8px;'
+      + 'font-size:.8rem;font-weight:700;cursor:pointer">🗑️ Supprimer</button>';
+    if ((act.eleves||[]).length) {
+      actions += '<button data-act="openEvalFromDetail" data-id="' + act.id + '" type="button" '
+        + 'style="flex:1;padding:.5rem;border:none;background:var(--bleu2);color:#fff;border-radius:8px;'
+        + 'font-size:.8rem;font-weight:700;cursor:pointer">📝 Évaluer</button>';
+    }
+    actions += '</div>';
 
     window.showModal('📋 ' + (act.titre || 'Activité'), body, actions);
   }
 
   // ══════════════════════════════════════════════════════════════
-  // CRÉATION — Interface plein écran ergonomique
+  // CRÉATION
   // ══════════════════════════════════════════════════════════════
 
   function showCreateModal() {
@@ -491,67 +508,74 @@
 
     var body = '<div style="font-size:.85rem">';
 
-    // ── Épreuve ──
+    // Épreuve
     body += '<div style="font-weight:700;margin-bottom:.4rem">Épreuve</div>';
     body += '<div id="actEprBtns" style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;margin-bottom:.75rem">';
     ['EP2','EP3-A','EP3-B','EP3-C'].forEach(function(ep) {
       var c = COULEURS[ep];
-      body += '<button type="button" class="actEprBtn" data-ep="' + ep + '" onclick="activModule._pickEp(\'' + ep + '\')" '
+      body += '<button type="button" data-act="pickEp" data-ep="' + ep + '" '
         + 'style="padding:.6rem;border:2px solid ' + c.bg + ';background:' + c.light + ';color:' + c.bg
-        + ';border-radius:10px;font-weight:700;font-size:.82rem;cursor:pointer;transition:all .2s">'
+        + ';border-radius:10px;font-weight:700;font-size:.82rem;cursor:pointer;'
+        + '-webkit-tap-highlight-color:rgba(0,0,0,.1)" class="actEprBtn">'
         + ep + '</button>';
     });
     body += '</div>';
 
-    // ── Phase ──
+    // Phase
     body += '<div style="font-weight:700;margin-bottom:.4rem">Phase</div>';
     body += '<div id="actPhaseBtns" style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;margin-bottom:.75rem">';
-    body += '<button type="button" class="actPhBtn" data-ph="formatif" onclick="activModule._pickPhase(\'formatif\')" '
-      + 'style="padding:.5rem;border:2px solid var(--bleu2);background:var(--bleu3);color:var(--bleu2);border-radius:10px;font-weight:700;font-size:.82rem;cursor:pointer">'
+    body += '<button type="button" data-act="pickPhase" data-ph="formatif" class="actPhBtn" '
+      + 'style="padding:.5rem;border:2px solid var(--bleu2);background:var(--bleu3);color:var(--bleu2);'
+      + 'border-radius:10px;font-weight:700;font-size:.82rem;cursor:pointer;'
+      + '-webkit-tap-highlight-color:rgba(0,0,0,.1)">'
       + '📘 Formatif</button>';
-    body += '<button type="button" class="actPhBtn" data-ph="certificatif" onclick="activModule._pickPhase(\'certificatif\')" '
-      + 'style="padding:.5rem;border:2px solid var(--orange);background:var(--orange2);color:var(--orange);border-radius:10px;font-weight:700;font-size:.82rem;cursor:pointer">'
+    body += '<button type="button" data-act="pickPhase" data-ph="certificatif" class="actPhBtn" '
+      + 'style="padding:.5rem;border:2px solid var(--orange);background:var(--orange2);color:var(--orange);'
+      + 'border-radius:10px;font-weight:700;font-size:.82rem;cursor:pointer;'
+      + '-webkit-tap-highlight-color:rgba(0,0,0,.1)">'
       + '📙 Certificatif</button>';
     body += '</div>';
 
-    // ── Titre ──
+    // Titre
     body += '<div style="margin-bottom:.75rem">';
     body += '<div style="font-weight:700;margin-bottom:.3rem">Titre de la séance</div>';
     body += '<input id="actTitre" type="text" placeholder="Ex : Brasage atelier S12" '
       + 'style="width:100%;padding:.5rem .75rem;border:2px solid var(--gris3);border-radius:10px;font-size:.85rem;box-sizing:border-box">';
     body += '</div>';
 
-    // ── Date ──
+    // Date
     body += '<div style="margin-bottom:.75rem">';
     body += '<div style="font-weight:700;margin-bottom:.3rem">Date</div>';
     body += '<input id="actDate" type="date" value="' + _today() + '" '
       + 'style="padding:.5rem .75rem;border:2px solid var(--gris3);border-radius:10px;font-size:.85rem">';
     body += '</div>';
 
-    // ── Compétences ──
+    // Compétences
     body += '<div style="margin-bottom:.75rem">';
     body += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem">'
       + '<span style="font-weight:700">🎯 Compétences</span>'
-      + '<button type="button" onclick="activModule._toggleAllComps()" '
-      + 'style="background:none;border:1px solid var(--gris3);border-radius:6px;padding:.2rem .5rem;font-size:.7rem;cursor:pointer">Tout cocher</button>'
+      + '<button type="button" data-act="toggleAllComps" '
+      + 'style="background:none;border:1px solid var(--gris3);border-radius:6px;padding:.2rem .5rem;font-size:.7rem;cursor:pointer;'
+      + '-webkit-tap-highlight-color:rgba(0,0,0,.1)">Tout cocher</button>'
       + '</div>';
     body += '<div id="actCompsZone" style="display:flex;flex-wrap:wrap;gap:.3rem"></div>';
     body += '</div>';
 
-    // ── Élèves ──
+    // Élèves
     body += '<div style="margin-bottom:.5rem">';
     body += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem">'
       + '<span style="font-weight:700">👥 Élèves <span id="actElvCount" style="font-weight:400;color:var(--gris);font-size:.78rem">(0/' + sts.length + ')</span></span>'
-      + '<button type="button" onclick="activModule._toggleAllEleves()" '
-      + 'style="background:none;border:1px solid var(--gris3);border-radius:6px;padding:.2rem .5rem;font-size:.7rem;cursor:pointer">Tout cocher</button>'
+      + '<button type="button" data-act="toggleAllEleves" '
+      + 'style="background:none;border:1px solid var(--gris3);border-radius:6px;padding:.2rem .5rem;font-size:.7rem;cursor:pointer;'
+      + '-webkit-tap-highlight-color:rgba(0,0,0,.1)">Tout cocher</button>'
       + '</div>';
     body += '<div id="actElevesZone" style="display:flex;flex-wrap:wrap;gap:.3rem">';
     if (sts.length) {
       sts.forEach(function (s) {
-        body += '<button type="button" class="actElvBtn" data-code="' + s.code + '" '
-          + 'onclick="activModule._toggleEleve(this)" '
+        body += '<button type="button" data-act="toggleEleve" data-code="' + s.code + '" class="actElvBtn" '
           + 'style="padding:.35rem .6rem;border:2px solid var(--gris3);background:#fff;border-radius:8px;'
-          + 'font-size:.78rem;cursor:pointer;transition:all .15s;font-weight:600">'
+          + 'font-size:.78rem;cursor:pointer;font-weight:600;'
+          + '-webkit-tap-highlight-color:rgba(0,0,0,.1)">'
           + (s.nom || '') + ' ' + (s.prenom ? s.prenom.charAt(0) + '.' : '') + '</button>';
       });
     } else {
@@ -561,8 +585,9 @@
 
     body += '</div>';
 
-    var actions = '<button onclick="activModule._submitCreate()" '
-      + 'class="btn btn-primary" style="width:100%;padding:.7rem;font-size:.9rem">✅ Créer l\'activité</button>';
+    var actions = '<button type="button" data-act="submitCreate" '
+      + 'style="width:100%;padding:.7rem;border:none;background:var(--bleu2);color:#fff;border-radius:10px;'
+      + 'font-size:.9rem;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,.1)">✅ Créer l\'activité</button>';
 
     window.showModal('📋 Nouvelle activité', body, actions);
 
@@ -571,7 +596,7 @@
     _pickPhase(window._actState.phase);
   }
 
-  // ── Interactions modale création ──
+  // ── Interactions création ──
 
   function _pickEp(ep) {
     window._actState.ep = ep;
@@ -587,10 +612,10 @@
     var comps = _compsForEpreuve(ep);
     var c = COULEURS[ep];
     zone.innerHTML = comps.map(function(comp) {
-      return '<button type="button" class="actCompBtn" data-code="' + comp.code + '" '
-        + 'onclick="activModule._toggleComp(this)" '
+      return '<button type="button" data-act="toggleComp" data-code="' + comp.code + '" class="actCompBtn" '
         + 'style="padding:.35rem .6rem;border:2px solid ' + c.bg + '44;background:#fff;border-radius:8px;'
-        + 'font-size:.78rem;cursor:pointer;transition:all .15s;font-weight:600;color:' + c.bg + '">'
+        + 'font-size:.78rem;cursor:pointer;font-weight:600;color:' + c.bg + ';'
+        + '-webkit-tap-highlight-color:rgba(0,0,0,.1)">'
         + comp.code + ' ' + comp.nom + '</button>';
     }).join('');
   }
@@ -599,12 +624,12 @@
     window._actState.phase = ph;
     document.querySelectorAll('.actPhBtn').forEach(function(btn) {
       var isActive = btn.dataset.ph === ph;
-      if (ph === 'formatif') {
-        btn.style.background = isActive && btn.dataset.ph === 'formatif' ? 'var(--bleu2)' : (btn.dataset.ph === 'formatif' ? 'var(--bleu3)' : 'var(--orange2)');
-        btn.style.color = isActive && btn.dataset.ph === 'formatif' ? '#fff' : (btn.dataset.ph === 'formatif' ? 'var(--bleu2)' : 'var(--orange)');
+      if (btn.dataset.ph === 'formatif') {
+        btn.style.background = isActive ? 'var(--bleu2)' : 'var(--bleu3)';
+        btn.style.color = isActive ? '#fff' : 'var(--bleu2)';
       } else {
-        btn.style.background = isActive && btn.dataset.ph === 'certificatif' ? 'var(--orange)' : (btn.dataset.ph === 'certificatif' ? 'var(--orange2)' : 'var(--bleu3)');
-        btn.style.color = isActive && btn.dataset.ph === 'certificatif' ? '#fff' : (btn.dataset.ph === 'certificatif' ? 'var(--orange)' : 'var(--bleu2)');
+        btn.style.background = isActive ? 'var(--orange)' : 'var(--orange2)';
+        btn.style.color = isActive ? '#fff' : 'var(--orange)';
       }
     });
   }
@@ -617,10 +642,12 @@
       window._actState.comps.push(code);
       btn.style.background = c.bg;
       btn.style.color = '#fff';
+      btn.style.borderColor = c.bg;
     } else {
       window._actState.comps.splice(idx, 1);
       btn.style.background = '#fff';
       btn.style.color = c.bg;
+      btn.style.borderColor = c.bg + '44';
     }
   }
 
@@ -645,20 +672,21 @@
   function _toggleAllComps() {
     var btns = document.querySelectorAll('.actCompBtn');
     var allSelected = window._actState.comps.length === btns.length;
+    var c = COULEURS[window._actState.ep];
     if (allSelected) {
       window._actState.comps = [];
       btns.forEach(function(btn) {
-        var c = COULEURS[window._actState.ep];
         btn.style.background = '#fff';
         btn.style.color = c.bg;
+        btn.style.borderColor = c.bg + '44';
       });
     } else {
       window._actState.comps = [];
       btns.forEach(function(btn) {
         window._actState.comps.push(btn.dataset.code);
-        var c = COULEURS[window._actState.ep];
         btn.style.background = c.bg;
         btn.style.color = '#fff';
+        btn.style.borderColor = c.bg;
       });
     }
   }
@@ -695,21 +723,15 @@
     if (!st.comps.length) { window.toast('Sélectionnez au moins une compétence', 'err'); return; }
 
     var act = create({
-      titre: titre,
-      date: date,
-      epreuve: st.ep,
-      competences: st.comps,
-      evaluateur: (window.cfg && window.cfg.nomProf) || '',
-      phase: st.phase,
-      eleves: st.eleves,
-      obs: ''
+      titre: titre, date: date, epreuve: st.ep,
+      competences: st.comps, evaluateur: (window.cfg && window.cfg.nomProf) || '',
+      phase: st.phase, eleves: st.eleves, obs: ''
     });
 
     window.closeModal();
     var el = document.getElementById('activitesList');
     if (el) renderList(el);
 
-    // Si des élèves sont sélectionnés, ouvrir directement l'évaluation
     if (act && (st.eleves || []).length) {
       setTimeout(function() { _openEval(act.id); }, 300);
     }
@@ -737,7 +759,6 @@
   }
 
   function del(id) {
-    if (!confirm('Supprimer cette activité ?')) return;
     window.appCfg.activites = (window.appCfg.activites || []).filter(function(a){ return a.id !== id; });
     if (typeof window.saveLocal === 'function') window.saveLocal();
     window.toast('Activité supprimée', 'inf');
@@ -761,18 +782,13 @@
     return s;
   }
 
-  // ── Exposition globale ──
+  // ── Initialisation + exposition ──
+
+  _installDelegation();
 
   window.activModule = {
     init: init, renderList: renderList, showCreateModal: showCreateModal,
-    create: create, 'delete': del, getForStudent: getForStudent, getStats: getStats,
-    _pickEp: _pickEp, _pickPhase: _pickPhase,
-    _toggleComp: _toggleComp, _toggleEleve: _toggleEleve,
-    _toggleAllComps: _toggleAllComps, _toggleAllEleves: _toggleAllEleves,
-    _submitCreate: _submitCreate, _showDetail: _showDetail,
-    _openEval: _openEval, _switchStudent: _switchStudent,
-    _toggleBlock: _toggleBlock,
-    _evalCrit: _evalCrit, _evalGlobal: _evalGlobal, _saveObs: _saveObs
+    create: create, 'delete': del, getForStudent: getForStudent, getStats: getStats
   };
 
 })();
