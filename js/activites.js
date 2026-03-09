@@ -941,6 +941,9 @@
       epreuve: data.epreuve || 'EP2', contexte: data.contexte || '',
       competences: data.competences || [], evaluateur: data.evaluateur || '',
       phase: data.phase || 'formatif', eleves: data.eleves || [],
+      elevesDetail: (data.eleves || []).map(function(code) {
+        return { code: code, phase: (data.phasesEleves && data.phasesEleves[code]) || data.phase || 'formatif' };
+      }),
       phasesEleves: data.phasesEleves || {},
       obs: data.obs || ''
     };
