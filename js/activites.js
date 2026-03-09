@@ -352,6 +352,11 @@
         + 'style="width:100%;margin-top:.3rem;padding:.3rem .5rem;border:1px solid #ddd;border-radius:6px;font-size:.72rem;'
         + 'resize:vertical;box-sizing:border-box">' + (obs || '') + '</textarea>';
 
+      // Zone photos (chargée de manière asynchrone)
+      html += '<div class="photoZone" data-pz-stu="' + studentCode + '" data-pz-act="' + act.id
+        + '" data-pz-comp="' + compCode + '" data-pz-epr="' + act.epreuve + '">'
+        + '<div style="font-size:.68rem;color:#aaa;padding:.2rem 0">📷 Chargement...</div></div>';
+
       html += '</div>'; // fin body
       html += '</div>'; // fin bloc
     });
@@ -368,6 +373,30 @@
         _saveObs(ta.dataset.obsstu, ta.dataset.obscomp, ta.dataset.obsepr, ta.value);
       });
     });
+
+    // Charger les photos de manière asynchrone dans chaque zone
+    _loadPhotosInZones(act, studentCode);
+  }
+
+  /** Charge les photos dans les zones .photoZone */
+  function _loadPhotosInZones(act, studentCode) {
+    if (!window.photosModule) return;
+    var zones = document.querySelectorAll('.photoZone');
+    zones.forEach(function(pz) {
+      var stu = pz.dataset.pzStu;
+      var actId = pz.dataset.pzAct;
+      var comp = pz.dataset.pzComp;
+      var epr = pz.dataset.pzEpr;
+      if (stu !== studentCode) return;
+      window.photosModule.getPhotos(stu, actId, comp).then(function(photos) {
+        pz.innerHTML = window.photosModule.renderPhotoBlock(stu, actId, comp, epr, photos);
+      });
+    });
+
+    // Callback pour rafraîchir après ajout/suppression de photo
+    window._photoRefreshCallback = function() {
+      _loadPhotosInZones(act, studentCode);
+    };
   }
 
   function _btnStyle(niv, selected) {

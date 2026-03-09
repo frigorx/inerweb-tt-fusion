@@ -16,7 +16,7 @@
 (function(){
   var v = Date.now();
   var mods = ['sync-queue','jury','phases','exposition','impossibilites',
-              'activites','tache-complexe','signatures','rapport-pdf','fusion-eval'];
+              'activites','photos','tache-complexe','signatures','rapport-pdf','fusion-eval'];
   mods.forEach(function(m){
     var s = document.createElement('script');
     s.src = 'js/' + m + '.js?v=' + v;
@@ -763,7 +763,7 @@ let users=[],classes=[],adminJournal=[];
 let cur=null,curCtx='atelier',curSit='A',curPhase='formatif';
 let online=false,demoMode=false,isAdmin=false,currentUser=null;
 const SK='inerweb-tt-prof-v4',SCFG='inerweb-tt-cfg',SPART='inerweb-tt-parts',SUSERS='inerweb-tt-users',SCLASSES='inerweb-tt-classes',SJOURNAL='inerweb-tt-journal';
-const DB_NAME='inerwebtt-db',DB_VERSION=1;
+const DB_NAME='inerwebtt-db',DB_VERSION=2;
 let db=null,backupInterval=null;
 
 /* ═══ [B2] INDEXEDDB MODULE ═══ */
@@ -777,6 +777,7 @@ async function initDB(){
       if(!d.objectStoreNames.contains('data'))d.createObjectStore('data',{keyPath:'id'});
       if(!d.objectStoreNames.contains('backups')){const bs=d.createObjectStore('backups',{keyPath:'id',autoIncrement:true});bs.createIndex('timestamp','timestamp',{unique:false});}
       if(!d.objectStoreNames.contains('config'))d.createObjectStore('config',{keyPath:'id'});
+      if(!d.objectStoreNames.contains('photos')){const ps=d.createObjectStore('photos',{keyPath:'id',autoIncrement:true});ps.createIndex('studentCode','studentCode',{unique:false});ps.createIndex('actId','actId',{unique:false});ps.createIndex('compKey','compKey',{unique:false});}
     };
   });
 }
