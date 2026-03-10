@@ -645,6 +645,7 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
         <button class="stage-tab" data-sp="tuteurs" onclick="switchStagePanel('tuteurs')">🏢 Évals tuteurs</button>
         <button class="stage-tab" data-sp="partenaires" onclick="switchStagePanel('partenaires')">📋 Partenaires</button>
         <button class="stage-tab" data-sp="comm" onclick="switchStagePanel('comm')">📣 Comm.</button>
+        <button class="stage-tab" data-sp="docs" onclick="switchStagePanel('docs')">📁 Documents</button>
       </div>
       <div class="stage-panel active" id="sp-suivi">
         <div id="stageList"><div class="empty"><div class="ei">🏢</div><p>Chargement...</p></div></div>
@@ -674,6 +675,45 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
         </div>
         <div id="partList"><div class="empty"><div class="ei">🏢</div><p>Aucun partenaire</p></div></div>
       </div>
+      <!-- PANEL DOCUMENTS PARTAGÉS -->
+      <div class="stage-panel" id="sp-docs">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:.5rem">
+          <span style="font-weight:800;color:var(--bleu);font-size:.9rem">📁 Documents partagés — Drive classe</span>
+        </div>
+        <div class="card" style="border-top:3px solid var(--teal)">
+          <div class="card-title">📤 Ajouter un document</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.75rem">
+            <div class="fr"><label>Catégorie</label>
+              <select id="docCategorie" style="padding:.5rem;border:2px solid var(--gris3);border-radius:var(--r2);font-size:.85rem;width:100%">
+                <option value="convention">📋 Convention de stage</option>
+                <option value="rapport-type">📝 Rapport de stage type</option>
+                <option value="support">📊 Support / Template</option>
+                <option value="guide">📖 Guide / Consignes</option>
+                <option value="autre">📎 Autre document</option>
+              </select>
+            </div>
+            <div class="fr"><label>Visible par</label>
+              <select id="docVisibilite" style="padding:.5rem;border:2px solid var(--gris3);border-radius:var(--r2);font-size:.85rem;width:100%">
+                <option value="tous">Élèves + Tuteurs</option>
+                <option value="eleves">Élèves uniquement</option>
+                <option value="tuteurs">Tuteurs uniquement</option>
+                <option value="profs">Profs uniquement</option>
+              </select>
+            </div>
+          </div>
+          <div class="fr" style="margin-bottom:.75rem"><label>Nom du document (optionnel)</label>
+            <input type="text" id="docNom" placeholder="Laisser vide = nom du fichier" style="padding:.5rem;border:2px solid var(--gris3);border-radius:var(--r2);font-size:.85rem;width:100%">
+          </div>
+          <label class="file-upload" style="margin-bottom:.75rem">
+            <input type="file" id="docFichier" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.odt,.ods,.odp,.jpg,.jpeg,.png,.txt" onchange="docFileSelected(this)">
+            <span>📁 Choisir un fichier</span>
+          </label>
+          <div id="docFileInfo" style="font-size:.78rem;color:var(--gris);margin-bottom:.5rem"></div>
+          <button class="btn btn-teal" onclick="ajouterDocument()">📤 Ajouter au drive</button>
+        </div>
+        <div id="sharedDocsList"></div>
+      </div>
+
       <div class="stage-panel" id="sp-comm">
         <div class="card">
           <div class="card-title">📣 Contacter les tuteurs</div>
@@ -967,7 +1007,7 @@ const CLASSES_DEFAUT=['CAP IFCA 1','CAP IFCA 2','2nde TNE','1ère MFER','Term MF
 
 /* ═══ [B] ÉTAT GLOBAL ═══ */
 let cfg={},appCfg={};
-let students=[],validations={},notes={},pfmpData={},partenaires=[],customCriteria={},compLocks={};
+let students=[],validations={},notes={},pfmpData={},partenaires=[],customCriteria={},compLocks={},sharedDocs=[];
 let users=[],classes=[],adminJournal=[];
 window.users=users;
 let cur=null,curCtx='atelier',curSit='A',curPhase='formatif';
@@ -1058,15 +1098,15 @@ function startAutoBackup(){
   backupInterval=setInterval(async()=>{if(students.length>0){await createBackup(true);console.log('[AutoBackup]',new Date().toISOString());}},5*60*1000);
 }
 async function saveLocalData(){
-  const data={id:'main',students,validations,notes,pfmpData,appCfg,customCriteria,compLocks,lastSave:new Date().toISOString()};
+  const data={id:'main',students,validations,notes,pfmpData,appCfg,customCriteria,compLocks,sharedDocs,lastSave:new Date().toISOString()};
   if(db){await saveIDB('data',data);}
-  try{localStorage.setItem(SK,JSON.stringify({students,validations,notes,pfmpData,appCfg,customCriteria,compLocks}));}catch{}
+  try{localStorage.setItem(SK,JSON.stringify({students,validations,notes,pfmpData,appCfg,customCriteria,compLocks,sharedDocs}));}catch{}
   updateStor();
 }
 async function loadLocalData(){
-  if(db){const d=await loadIDB('data','main');if(d){students=d.students||[];validations=d.validations||{};notes=d.notes||{};pfmpData=d.pfmpData||{};appCfg=d.appCfg||{};customCriteria=d.customCriteria||{};compLocks=d.compLocks||{};window.students=students;window.validations=validations;window.appCfg=appCfg;return true;}}
+  if(db){const d=await loadIDB('data','main');if(d){students=d.students||[];validations=d.validations||{};notes=d.notes||{};pfmpData=d.pfmpData||{};appCfg=d.appCfg||{};customCriteria=d.customCriteria||{};compLocks=d.compLocks||{};sharedDocs=d.sharedDocs||[];window.students=students;window.validations=validations;window.appCfg=appCfg;return true;}}
   const d=localStorage.getItem(SK);if(!d)return false;
-  const p=JSON.parse(d);students=p.students||[];validations=p.validations||{};notes=p.notes||{};pfmpData=p.pfmpData||{};appCfg=p.appCfg||{};customCriteria=p.customCriteria||{};compLocks=p.compLocks||{};
+  const p=JSON.parse(d);students=p.students||[];validations=p.validations||{};notes=p.notes||{};pfmpData=p.pfmpData||{};appCfg=p.appCfg||{};customCriteria=p.customCriteria||{};compLocks=p.compLocks||{};sharedDocs=p.sharedDocs||[];
   window.students=students;window.validations=validations;window.appCfg=appCfg;
   return true;
 }
@@ -1345,6 +1385,7 @@ function switchStagePanel(p){
   document.getElementById('sp-'+p)?.classList.add('active');
   if(p==='partenaires')renderParts();
   if(p==='comm')renderComm();
+  if(p==='docs')renderSharedDocs();
 }
 function setPhase(ph){
   curPhase=ph;
@@ -2264,6 +2305,103 @@ function sauverRapport(){
   toast('Évaluation rapport sauvegardée ✓','ok');
 }
 
+/* ═══ [H-ter] DOCUMENTS PARTAGÉS — DRIVE CLASSE ═══ */
+const DOC_CAT_LABELS={convention:'📋 Convention',  'rapport-type':'📝 Rapport type', support:'📊 Support', guide:'📖 Guide', autre:'📎 Autre'};
+const DOC_VIS_LABELS={tous:'Élèves + Tuteurs', eleves:'Élèves', tuteurs:'Tuteurs', profs:'Profs'};
+const DOC_VIS_COLORS={tous:'var(--teal)', eleves:'var(--violet)', tuteurs:'var(--bleu2)', profs:'var(--orange)'};
+
+function docFileSelected(input){
+  const info=document.getElementById('docFileInfo');
+  if(input.files.length){
+    const f=input.files[0];
+    const sz=f.size<1024*1024?(Math.round(f.size/1024)+'Ko'):(Math.round(f.size/1024/1024*10)/10+'Mo');
+    info.innerHTML=`<strong>${f.name}</strong> — ${sz}`;
+  }else{info.innerHTML='';}
+}
+
+function ajouterDocument(){
+  const input=document.getElementById('docFichier');
+  if(!input.files.length){toast('Sélectionnez un fichier','err');return;}
+  const f=input.files[0];
+  if(f.size>10*1024*1024){toast('Fichier trop volumineux (max 10 Mo)','err');return;}
+  const cat=document.getElementById('docCategorie').value;
+  const vis=document.getElementById('docVisibilite').value;
+  const nom=document.getElementById('docNom').value.trim()||f.name;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const doc={
+      id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+      nom,
+      filename:f.name,
+      categorie:cat,
+      visibilite:vis,
+      type:f.type,
+      taille:f.size,
+      dataUrl:e.target.result,
+      date:new Date().toISOString(),
+      auteur:cfg.nomProf||'Prof'
+    };
+    sharedDocs.push(doc);
+    saveLocal();
+    renderSharedDocs();
+    toast('Document ajouté au drive','ok');
+    // Reset
+    input.value='';
+    document.getElementById('docNom').value='';
+    document.getElementById('docFileInfo').innerHTML='';
+  };
+  reader.readAsDataURL(f);
+}
+
+function supprimerDoc(id){
+  if(!confirm('Supprimer ce document du drive ?'))return;
+  sharedDocs=sharedDocs.filter(d=>d.id!==id);
+  saveLocal();renderSharedDocs();toast('Document supprimé','warn');
+}
+
+function telechargerDoc(id){
+  const doc=sharedDocs.find(d=>d.id===id);
+  if(!doc)return;
+  const a=document.createElement('a');
+  a.href=doc.dataUrl;
+  a.download=doc.filename||doc.nom;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
+
+function renderSharedDocs(){
+  const c=document.getElementById('sharedDocsList');
+  if(!c)return;
+  if(!sharedDocs.length){
+    c.innerHTML='<div class="empty"><div class="ei">📁</div><p>Aucun document partagé</p><p style="font-size:.75rem;color:var(--gris)">Ajoutez des conventions, rapports types, guides...</p></div>';
+    return;
+  }
+  // Grouper par catégorie
+  const byCat={};
+  sharedDocs.forEach(d=>{if(!byCat[d.categorie])byCat[d.categorie]=[];byCat[d.categorie].push(d);});
+  const extIcons={pdf:'📕',doc:'📘',docx:'📘',ppt:'📙',pptx:'📙',xls:'📗',xlsx:'📗',odt:'📘',odp:'📙',ods:'📗',jpg:'🖼️',jpeg:'🖼️',png:'🖼️',txt:'📄'};
+  c.innerHTML=Object.keys(byCat).map(cat=>{
+    const docs=byCat[cat];
+    return `<div class="card" style="border-left:3px solid ${DOC_VIS_COLORS[docs[0].visibilite]||'var(--gris)'}">
+      <div class="card-title">${DOC_CAT_LABELS[cat]||cat} <span class="badge" style="background:var(--gris2);font-size:.65rem">${docs.length}</span></div>
+      ${docs.map(d=>{
+        const ext=(d.filename||d.nom).split('.').pop().toLowerCase();
+        const ico=extIcons[ext]||'📄';
+        const sz=d.taille<1024*1024?(Math.round(d.taille/1024)+'Ko'):(Math.round(d.taille/1024/1024*10)/10+'Mo');
+        const dt=new Date(d.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'});
+        return `<div style="display:flex;align-items:center;gap:.6rem;padding:.5rem .6rem;background:var(--gris2);border-radius:var(--r2);margin-bottom:.35rem">
+          <span style="font-size:1.3rem">${ico}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:.82rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.nom}</div>
+            <div style="font-size:.68rem;color:var(--gris)">${sz} · ${dt} · <span style="color:${DOC_VIS_COLORS[d.visibilite]||'var(--gris)'};font-weight:700">${DOC_VIS_LABELS[d.visibilite]||d.visibilite}</span></div>
+          </div>
+          <button class="btn btn-ghost btn-xs" onclick="telechargerDoc('${d.id}')" title="Télécharger">⬇️</button>
+          <button class="btn btn-rouge btn-xs" onclick="supprimerDoc('${d.id}')" title="Supprimer">🗑️</button>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+}
+
 function renderBilan(){
   const c=document.getElementById('bilanContent');
   if(!cur){c.innerHTML='<div class="empty"><div class="ei">🏆</div><p>Sélectionnez un élève</p></div>';return;}
@@ -2604,10 +2742,12 @@ function previewPageEleve(code){
   const s=students.find(x=>x.code===code);
   if(!s){toast('Élève introuvable','err');return;}
   // Stocker les données élève dans sessionStorage pour le mode preview
+  const docsEleve=sharedDocs.filter(d=>d.visibilite==='tous'||d.visibilite==='eleves');
   const previewData={
     eleve:{code:s.code,nom:s.nom,prenom:s.prenom,classe:s.classe,entreprise_nom:s.entreprise_nom||'',tuteur_nom:s.tuteur_nom||'',pfmp_debut:s.pfmp_debut||'',pfmp_fin:s.pfmp_fin||''},
     evals:_buildEvals(code),
-    journal:(pfmpData[code]||{}).journal||[]
+    journal:(pfmpData[code]||{}).journal||[],
+    sharedDocs:docsEleve
   };
   sessionStorage.setItem('inerwebPreview',JSON.stringify(previewData));
   const base=location.href.replace(/[^/]*$/,'');
@@ -2626,6 +2766,8 @@ function _buildEvals(code){
 function previewPageTuteur(code){
   const s=students.find(x=>x.code===code);
   if(!s){toast('Élève introuvable','err');return;}
+  const docsTuteur=sharedDocs.filter(d=>d.visibilite==='tous'||d.visibilite==='tuteurs');
+  sessionStorage.setItem('inerwebPreviewTuteur',JSON.stringify({sharedDocs:docsTuteur}));
   const base=location.href.replace(/[^/]*$/,'');
   const url=`${base}inerweb_tuteur.html?preview=1&eleve=${code}&tuteur=${s.token_tuteur||s.code}`;
   window.open(url,'_blank');
@@ -2762,7 +2904,7 @@ function exportExcel(){
   toast('Excel généré','ok');
 }
 function exportBackup(){
-  const data={version:'TT-4.0',timestamp:new Date().toISOString(),cfg:appCfg,students,validations,notes,pfmpData};
+  const data={version:'TT-4.0',timestamp:new Date().toISOString(),cfg:appCfg,students,validations,notes,pfmpData,sharedDocs};
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));
   a.download=`inerweb_backup_${new Date().toISOString().slice(0,10)}.json`;a.click();
@@ -2776,6 +2918,7 @@ function handleRestore(file){
     if(d.config&&!d.version){migrateV10(d);toast('Données v10 migrées','ok');return;}
     if(d.students)students=d.students;if(d.validations)validations=d.validations;
     if(d.notes)notes=d.notes;if(d.pfmpData)pfmpData=d.pfmpData;if(d.cfg)appCfg=d.cfg;
+    if(d.sharedDocs)sharedDocs=d.sharedDocs;
     saveLocal();updateAll();toast(`Backup ${d.version||''} restauré`,'ok');
   }catch{toast('Fichier invalide','err');}};
   r.readAsText(file);

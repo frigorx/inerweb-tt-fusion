@@ -488,6 +488,13 @@ video{width:100%;border-radius:var(--r);background:#000;display:block;}
 
     <button class="btn btn-vert" onclick="envoyer()" style="margin-bottom:.5rem">📤 Envoyer l'évaluation à l'enseignant</button>
     <button class="btn btn-ghost" onclick="goPage('scan')" style="margin-bottom:1rem">📱 Évaluer un autre stagiaire</button>
+
+    <!-- Documents partagés -->
+    <div class="card" id="tuteurDocsCard" style="border-top:3px solid var(--teal);display:none">
+      <div class="card-title" style="color:var(--teal)">📁 Documents</div>
+      <div style="font-size:.78rem;color:var(--gris);margin-bottom:.75rem">Documents mis à disposition par l'enseignant</div>
+      <div id="tuteurDocsList"></div>
+    </div>
   </div>
 </div>
 
@@ -542,6 +549,7 @@ let eleveCode=null,eleveData=null,tuteurToken=null;
 let evalData={};   // {competence: {niveau, taches:{tache:true/false}}}
 let compLocks={};  // Verrouillage par compétence
 let behavData={};  // {key: 'ok'|'ko'|null}
+let tuteurSharedDocs=[];
 let telsCount=1,emailsCount=1,tuteursCount=1;
 
 // ⚠️ SÉCURITÉ : Le tuteur n'utilise PAS la clé prof
@@ -553,6 +561,34 @@ function goPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById('page-'+id).classList.add('active');
   window.scrollTo(0,0);
+}
+
+/* ═══ DOCUMENTS PARTAGÉS ═══ */
+function renderTuteurDocs(){
+  const card=document.getElementById('tuteurDocsCard');
+  const c=document.getElementById('tuteurDocsList');
+  if(!c||!tuteurSharedDocs.length){if(card)card.style.display='none';return;}
+  card.style.display='';
+  const extIco={pdf:'📕',doc:'📘',docx:'📘',ppt:'📙',pptx:'📙',xls:'📗',xlsx:'📗',jpg:'🖼️',jpeg:'🖼️',png:'🖼️',txt:'📄'};
+  c.innerHTML=tuteurSharedDocs.map((d,i)=>{
+    const ext=(d.filename||d.nom).split('.').pop().toLowerCase();
+    const ico=extIco[ext]||'📄';
+    const sz=d.taille?d.taille<1024*1024?(Math.round(d.taille/1024)+'Ko'):(Math.round(d.taille/1024/1024*10)/10+'Mo'):'';
+    return `<div style="display:flex;align-items:center;gap:.6rem;padding:.5rem .6rem;background:var(--gris2);border-radius:8px;margin-bottom:.35rem;cursor:pointer" onclick="telechargerDocTuteur(${i})">
+      <span style="font-size:1.3rem">${ico}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.82rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.nom}</div>
+        <div style="font-size:.68rem;color:var(--gris)">${d.categorie==='convention'?'📋 Convention':d.categorie==='rapport-type'?'📝 Rapport type':'📎 Document'}${sz?' · '+sz:''}</div>
+      </div>
+      <span style="font-size:1rem;color:var(--teal)">⬇️</span>
+    </div>`;
+  }).join('');
+}
+function telechargerDocTuteur(idx){
+  const d=tuteurSharedDocs[idx];
+  if(!d||!d.dataUrl)return;
+  const a=document.createElement('a');a.href=d.dataUrl;a.download=d.filename||d.nom;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
 }
 
 /* ═══ MULTI-CHAMPS TÉLÉPHONES / EMAILS ═══ */
@@ -704,6 +740,7 @@ async function chargerEleve(code,token){
   renderStagiaireInfo();
   renderEval();
   renderBehav();
+  renderTuteurDocs();
   goPage('eval');
 }
 
@@ -997,6 +1034,9 @@ if(_p.get('preview')==='1'&&_p.get('eleve')){
   document.getElementById('setupScreen').style.display='none';
   document.getElementById('mainApp').style.display='flex';
   document.getElementById('eleveNom').textContent='Aperçu prof';
+  // Charger documents partagés depuis sessionStorage
+  try{const pd=JSON.parse(sessionStorage.getItem('inerwebPreviewTuteur')||'{}');tuteurSharedDocs=pd.sharedDocs||[];}catch{}
+  renderTuteurDocs();
   toast('Mode aperçu (vue prof)','ok');
 } else if(_p.get('eleve')){
   const d=JSON.parse(localStorage.getItem('inerweb-tuteur-data')||'{}');

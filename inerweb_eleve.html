@@ -252,6 +252,31 @@ input, select, textarea, button { font-family:inherit; }
     </div>
   </div>
 
+  <div class="page" id="page-docs">
+    <div class="card">
+      <div class="card-title">📁 Mes documents</div>
+      <div style="font-size:.8rem;color:var(--gris);margin-bottom:1rem">Documents partagés par ton prof et tes propres fichiers</div>
+    </div>
+    <div id="sharedDocsEleve"></div>
+    <div class="card" style="border-top:3px solid var(--violet);margin-top:.75rem">
+      <div class="card-title">📤 Déposer un document</div>
+      <div style="font-size:.78rem;color:var(--gris);margin-bottom:.75rem">Dépose ici ton rapport de stage, ta convention signée ou tout autre document</div>
+      <div class="form-group"><label>Type</label>
+        <select id="eleveDocType">
+          <option value="rapport">📝 Mon rapport de stage</option>
+          <option value="convention">📋 Ma convention signée</option>
+          <option value="autre">📎 Autre document</option>
+        </select>
+      </div>
+      <div class="upload-zone" onclick="document.getElementById('eleveDocInput').click()">
+        <div class="upload-zone-ico">📁</div>
+        <div class="upload-zone-txt"><strong>Clique</strong> pour choisir un fichier</div>
+      </div>
+      <input type="file" id="eleveDocInput" class="upload-input" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.odt,.odp,.jpg,.jpeg,.png,.txt" onchange="ajouterDocEleve(this)">
+      <div id="eleveDocsList"></div>
+    </div>
+  </div>
+
   <div class="page" id="page-journal">
     <div class="card">
       <div class="card-title">✏️ Ajouter une entrée</div>
@@ -292,6 +317,7 @@ input, select, textarea, button { font-family:inherit; }
   <nav class="bottom-nav">
     <button class="nav-item active" data-page="home" onclick="switchPage('home')"><span class="nav-ico">🏠</span><span class="nav-lbl">Accueil</span></button>
     <button class="nav-item" data-page="progress" onclick="switchPage('progress')"><span class="nav-ico">📊</span><span class="nav-lbl">Progression</span></button>
+    <button class="nav-item" data-page="docs" onclick="switchPage('docs')"><span class="nav-ico">📁</span><span class="nav-lbl">Documents</span></button>
     <button class="nav-item" data-page="journal" onclick="switchPage('journal')"><span class="nav-ico">📓</span><span class="nav-lbl">Journal</span></button>
   </nav>
 </div>
@@ -311,7 +337,7 @@ const NV_LBL={NE:'Non Évalué',NA:'Non Acquis',EC:'En Cours',M:'Maîtrisé',PM:
 const TYPE_LBL={activite:'🔧 Activité',observation:'👁️ Observation',question:'❓ Question',reflexion:'💭 Réflexion'};
 
 let cfg={apiUrl:'',token:''};
-let eleve=null,journal=[],evals={},pendingPhotos=[];
+let eleve=null,journal=[],evals={},pendingPhotos=[],sharedDocs=[],eleveDocs=[];
 const SK='inerweb-eleve-v2',MAX_PHOTOS_DAY=10,MAX_PHOTO_SIZE=200*1024;
 
 function toast(msg,type='inf'){const c=document.getElementById('toastC'),t=document.createElement('div');t.className='toast '+type;t.textContent=msg;c.appendChild(t);setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),300);},3000);}
@@ -321,8 +347,8 @@ function dateFR(iso){if(!iso)return'—';try{return new Date(iso).toLocaleDateSt
 function dateShort(iso){if(!iso)return'—';try{return new Date(iso).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});}catch{return String(iso).slice(0,10);}}
 function timeHM(iso){if(!iso)return'';try{return new Date(iso).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});}catch{return'';}}
 function todayISO(){return new Date().toISOString().slice(0,10);}
-function saveLocal(){localStorage.setItem(SK,JSON.stringify({cfg,eleve,journal,evals}));}
-function loadLocal(){const d=localStorage.getItem(SK);if(!d)return false;try{const p=JSON.parse(d);cfg=p.cfg||{};eleve=p.eleve||null;journal=p.journal||[];evals=p.evals||{};return!!eleve;}catch{return false;}}
+function saveLocal(){localStorage.setItem(SK,JSON.stringify({cfg,eleve,journal,evals,eleveDocs}));}
+function loadLocal(){const d=localStorage.getItem(SK);if(!d)return false;try{const p=JSON.parse(d);cfg=p.cfg||{};eleve=p.eleve||null;journal=p.journal||[];evals=p.evals||{};eleveDocs=p.eleveDocs||[];return!!eleve;}catch{return false;}}
 
 async function compressImage(file){
   return new Promise(resolve=>{
@@ -461,7 +487,7 @@ function switchPage(page){
   if(page==='journal')updatePhotoCounter();
 }
 
-function renderAll(){renderHeader();renderHome();renderProgress();renderJournal();updatePhotoCounter();}
+function renderAll(){renderHeader();renderHome();renderProgress();renderJournal();renderDocsEleve();updatePhotoCounter();}
 function renderHeader(){document.getElementById('hdrName').textContent=`${eleve.prenom||''} ${eleve.nom||''}`.trim()||'—';document.getElementById('hdrClass').textContent=eleve.classe||'—';}
 
 function renderHome(){
@@ -494,6 +520,94 @@ function renderProgress(){
 
 function compItem(comp,niv,ep){const nivClass='niv-'+niv.toLowerCase();return`<div class="comp-item ${ep}"><span class="comp-code">${comp.code}</span><span class="comp-nom">${comp.nom}</span><span class="comp-niv ${nivClass}">${NV_LBL[niv]||niv}</span></div>`;}
 
+/* ═══ DOCUMENTS ═══ */
+const DOC_CAT_ICO={convention:'📋','rapport-type':'📝',support:'📊',guide:'📖',autre:'📎',rapport:'📝'};
+const EXT_ICO={pdf:'📕',doc:'📘',docx:'📘',ppt:'📙',pptx:'📙',xls:'📗',xlsx:'📗',odt:'📘',odp:'📙',ods:'📗',jpg:'🖼️',jpeg:'🖼️',png:'🖼️',txt:'📄'};
+
+function renderDocsEleve(){
+  const cShared=document.getElementById('sharedDocsEleve');
+  const cOwn=document.getElementById('eleveDocsList');
+  if(!cShared)return;
+  // Documents partagés par le prof
+  if(!sharedDocs.length){
+    cShared.innerHTML='<div class="card"><div style="text-align:center;padding:1rem;color:var(--gris)"><div style="font-size:2rem;margin-bottom:.5rem">📭</div>Aucun document partagé par ton prof pour le moment</div></div>';
+  }else{
+    cShared.innerHTML=sharedDocs.map(d=>{
+      const ext=(d.filename||d.nom).split('.').pop().toLowerCase();
+      const ico=EXT_ICO[ext]||'📄';
+      const sz=d.taille?d.taille<1024*1024?(Math.round(d.taille/1024)+'Ko'):(Math.round(d.taille/1024/1024*10)/10+'Mo'):'';
+      return `<div class="card" style="padding:.8rem 1rem;display:flex;align-items:center;gap:.75rem;cursor:pointer" onclick="telechargerDocEleve(${sharedDocs.indexOf(d)},'shared')">
+        <span style="font-size:1.5rem">${ico}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.85rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.nom}</div>
+          <div style="font-size:.7rem;color:var(--gris)">${DOC_CAT_ICO[d.categorie]||''} ${d.categorie==='convention'?'Convention':d.categorie==='rapport-type'?'Rapport type':d.categorie==='support'?'Support':d.categorie==='guide'?'Guide':'Document'}${sz?' · '+sz:''}</div>
+        </div>
+        <span style="font-size:1.1rem;color:var(--teal)">⬇️</span>
+      </div>`;
+    }).join('');
+  }
+  // Documents personnels de l'élève
+  if(cOwn){
+    if(!eleveDocs.length){
+      cOwn.innerHTML='<div style="text-align:center;padding:.75rem;color:var(--gris);font-size:.8rem">Aucun document déposé</div>';
+    }else{
+      cOwn.innerHTML=eleveDocs.map((d,i)=>{
+        const ext=(d.filename||d.nom).split('.').pop().toLowerCase();
+        const ico=EXT_ICO[ext]||'📄';
+        const sz=d.taille?d.taille<1024*1024?(Math.round(d.taille/1024)+'Ko'):(Math.round(d.taille/1024/1024*10)/10+'Mo'):'';
+        const dt=new Date(d.date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+        return `<div style="display:flex;align-items:center;gap:.6rem;padding:.5rem .6rem;background:var(--gris2);border-radius:var(--r2);margin-bottom:.35rem">
+          <span style="font-size:1.2rem">${ico}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:.8rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.nom}</div>
+            <div style="font-size:.68rem;color:var(--gris)">${sz} · ${dt}</div>
+          </div>
+          <button style="background:none;border:none;font-size:1rem;cursor:pointer" onclick="telechargerDocEleve(${i},'own')">⬇️</button>
+          <button style="background:none;border:none;font-size:1rem;cursor:pointer;color:var(--rouge)" onclick="supprimerDocEleve(${i})">🗑️</button>
+        </div>`;
+      }).join('');
+    }
+  }
+}
+
+function telechargerDocEleve(idx,type){
+  const doc=type==='shared'?sharedDocs[idx]:eleveDocs[idx];
+  if(!doc||!doc.dataUrl)return;
+  const a=document.createElement('a');
+  a.href=doc.dataUrl;a.download=doc.filename||doc.nom;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
+
+function ajouterDocEleve(input){
+  if(!input.files.length)return;
+  const f=input.files[0];
+  if(f.size>10*1024*1024){toast('Fichier trop volumineux (max 10 Mo)','err');return;}
+  const type=document.getElementById('eleveDocType').value;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    eleveDocs.push({
+      id:Date.now().toString(36),
+      nom:f.name,
+      filename:f.name,
+      type:type,
+      taille:f.size,
+      dataUrl:e.target.result,
+      date:new Date().toISOString()
+    });
+    saveLocal();renderDocsEleve();
+    toast('Document déposé !','ok');
+    input.value='';
+  };
+  reader.readAsDataURL(f);
+}
+
+function supprimerDocEleve(idx){
+  if(!confirm('Supprimer ce document ?'))return;
+  eleveDocs.splice(idx,1);
+  saveLocal();renderDocsEleve();
+  toast('Document supprimé','inf');
+}
+
 async function exportPDF(){
   toast('Génération du PDF...','inf');showSpinner();
   const printWindow=window.open('','_blank');
@@ -524,7 +638,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     try{
       const pd=JSON.parse(sessionStorage.getItem('inerwebPreview')||'null');
       if(pd&&pd.eleve){
-        eleve=pd.eleve;evals=pd.evals||{};journal=pd.journal||[];
+        eleve=pd.eleve;evals=pd.evals||{};journal=pd.journal||[];sharedDocs=pd.sharedDocs||[];
         startApp();
         toast('Mode aperçu (vue prof)','ok');
         return;
