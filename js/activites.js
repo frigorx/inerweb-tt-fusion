@@ -577,6 +577,19 @@
     if (act.evaluateur) {
       body += '<div style="font-size:.78rem;color:var(--gris)">✏️ Évaluateur : ' + act.evaluateur + '</div>';
     }
+
+    // Photos / preuves
+    body += '<div style="margin-top:.75rem"><div style="font-weight:700;margin-bottom:.3rem">📷 Photos / Preuves</div>';
+    body += '<div id="actPhotos-' + act.id + '" style="display:flex;flex-wrap:wrap;gap:.3rem">';
+    (act.photos || []).forEach(function(p, i) {
+      body += '<img src="' + p + '" style="width:60px;height:60px;object-fit:cover;border-radius:6px;cursor:pointer" onclick="window.open(this.src)">';
+    });
+    if (!(act.photos || []).length) body += '<span style="font-size:.72rem;color:#aaa">Aucune photo</span>';
+    body += '</div>';
+    body += '<label style="display:inline-block;margin-top:.3rem;padding:.3rem .6rem;background:var(--bleu2);color:#fff;'
+      + 'border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer">📸 Ajouter photo'
+      + '<input type="file" accept="image/*" capture="environment" data-actphoto="' + act.id + '" style="display:none"></label></div>';
+
     body += '</div>';
 
     var actions = '<div style="display:flex;gap:.4rem">'
@@ -591,6 +604,20 @@
     actions += '</div>';
 
     window.showModal('📋 ' + (act.titre || 'Activité'), body, actions);
+
+    // Listener ajout photo en base64 dans activite.photos[]
+    var fi = document.querySelector('input[data-actphoto="' + act.id + '"]');
+    if (fi) fi.addEventListener('change', function() {
+      if (!this.files.length) return;
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        if (!act.photos) act.photos = [];
+        act.photos.push(e.target.result);
+        if (typeof window.saveLocal === 'function') window.saveLocal();
+        _showDetail(act.id);
+      };
+      reader.readAsDataURL(this.files[0]);
+    });
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -940,6 +967,7 @@
         return { code: code, phase: (data.phasesEleves && data.phasesEleves[code]) || data.phase || 'formatif' };
       }),
       phasesEleves: data.phasesEleves || {},
+      photos: data.photos || [],
       obs: data.obs || ''
     };
     window.appCfg.activites.push(act);
