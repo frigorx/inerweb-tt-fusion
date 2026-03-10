@@ -27,6 +27,10 @@
     'EP3-C': 'EP3-C — Documents'
   };
 
+  // Garde-fou : appCfg doit exister
+  if (!window.appCfg) window.appCfg = {};
+  if (!Array.isArray(window.appCfg.activites)) window.appCfg.activites = [];
+
   // État interne
   var _evalState = { actId: null, studentCode: null };
 
@@ -129,6 +133,7 @@
     var el = typeof container === 'string' ? document.querySelector(container) : container;
     if (!el) return;
 
+    if (!window.appCfg) window.appCfg = {};
     var acts = (window.appCfg.activites || []).slice();
     acts.sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
 

@@ -33,6 +33,10 @@
     phasesEleves: {}
   };
 
+  // Garde-fou
+  if (!window.appCfg) window.appCfg = {};
+  if (!Array.isArray(window.appCfg.activites)) window.appCfg.activites = [];
+
   // ── Helpers ──
 
   function _comps(epr) {
