@@ -338,10 +338,21 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
 <!-- ÉCRAN CONFIG -->
 <div id="screen-config">
   <div class="cfg-box">
-    <div class="cfg-logo">
-      <div class="cfg-logo-ico">❄️</div>
-      <div class="cfg-logo-txt"><h1>inerWeb TT</h1><p>CCF + Stage — Plateforme professeur</p></div>
-      <span class="cfg-badge">v4.0</span>
+    <div class="cfg-logo" style="flex-direction:column;gap:.5rem">
+      <svg xmlns="http://www.w3.org/2000/svg" width="380" height="55" viewBox="0 0 400 50" style="max-width:100%">
+        <text fill="#1b3a63" font-size="28px" x="4" y="34">❄️</text>
+        <text fill="#1b3a63" font-family="Trebuchet MS, Trebuchet, sans-serif" font-size="26px" font-weight="bold" x="44" y="32">iner</text>
+        <text fill="#1b3a63" font-family="Segoe Script, Brush Script MT, cursive" font-size="26px" x="94" y="32">Web</text>
+        <line stroke="#e8914a" stroke-width="2" x1="44" x2="150" y1="35" y2="35"/>
+        <rect fill="#e8914a" x="155" y="10" rx="5" ry="5" width="65" height="24"/>
+        <text fill="#ffffff" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14px" font-weight="bold" x="187" y="27" text-anchor="middle">Pilote</text>
+        <text fill="#999" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11px" x="230" y="27">v4.0</text>
+      </svg>
+      <svg xmlns="http://www.w3.org/2000/svg" width="260" height="36" viewBox="0 0 320 42" style="max-width:100%">
+        <text fill="#1b3a63" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="11px" font-weight="800" x="0" y="14">LYCÉE PROFESSIONNEL PRIVÉ</text>
+        <text fill="#1b3a63" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="15px" font-weight="800" x="0" y="34">JACQUES RAYNAUD</text>
+      </svg>
+      <p style="font-size:.78rem;color:var(--gris);margin:0">CCF + Stage — Plateforme professeur</p>
     </div>
     <div class="cfg-hint">
       <code>URL API</code> = URL de déploiement Code.gs ·
@@ -363,8 +374,22 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
 <!-- ÉCRAN APP -->
 <div id="screen-app">
   <header class="app-header">
-    <div class="hdr-logo"><span class="hdr-logo-ico">❄️</span><div class="hdr-logo-name">inerWeb TT<em>CAP IFCA</em></div></div>
-    <div class="hdr-mid" id="hdrEtab">Établissement</div>
+    <div class="hdr-logo">
+      <svg xmlns="http://www.w3.org/2000/svg" width="180" height="32" viewBox="0 0 220 36" style="flex-shrink:0">
+        <text fill="#ffffff" font-size="20px" x="2" y="24">❄️</text>
+        <text fill="#ffffff" font-family="Trebuchet MS, Trebuchet, sans-serif" font-size="18px" font-weight="bold" x="30" y="22">iner</text>
+        <text fill="#ffffff" font-family="Segoe Script, Brush Script MT, cursive" font-size="18px" x="66" y="22">Web</text>
+        <line stroke="#e8914a" stroke-width="2" x1="30" x2="110" y1="25" y2="25"/>
+        <rect fill="#e8914a" x="114" y="6" rx="4" ry="4" width="50" height="18"/>
+        <text fill="#ffffff" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="10px" font-weight="bold" x="139" y="19" text-anchor="middle">Pilote</text>
+      </svg>
+    </div>
+    <div class="hdr-mid" id="hdrEtab">
+      <svg xmlns="http://www.w3.org/2000/svg" width="160" height="32" viewBox="0 0 250 50" style="max-width:100%">
+        <text fill="#ffffff" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="14px" font-weight="800" x="2" y="18">LPP</text>
+        <text fill="#ffffff" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="17px" font-weight="800" x="2" y="40">JACQUES RAYNAUD</text>
+      </svg>
+    </div>
     <div class="hdr-right">
       <div class="sync-pill" onclick="syncAll()"><span class="sync-dot syncing" id="syncDot"></span><span id="syncLbl">Sync...</span><span id="syncBadge" style="display:none;background:var(--orange);color:#fff;font-size:.65rem;font-weight:800;padding:.1rem .4rem;border-radius:10px;margin-left:.3rem;">0</span></div>
       <button class="btn btn-ghost btn-xs" onclick="showParamModal()">⚙️</button>
