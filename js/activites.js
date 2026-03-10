@@ -176,6 +176,9 @@
         + '<span>🎯 ' + nbComps + ' comp.</span>'
         + '</div>'
         + (nomsStr ? '<div style="margin-top:.3rem;font-size:.72rem;color:#666">' + nomsStr + '</div>' : '')
+        + '<div style="margin-top:.4rem"><button data-act="showDetail" data-id="' + act.id + '" type="button" '
+        + 'style="padding:.2rem .5rem;border:1px solid ' + c.bg + ';background:#fff;color:' + c.bg
+        + ';border-radius:6px;font-size:.68rem;font-weight:600;cursor:pointer">ℹ️ Voir détail</button></div>'
         + '</div>';
     }).join('');
   }
