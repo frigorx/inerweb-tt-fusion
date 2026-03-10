@@ -1,5 +1,5 @@
 /**
- * tp-manager.js — Création et bibliothèque de TP
+ * tp-manager.js — Création et bibliothèque de sessions (TP/TD/cours/interro/eval)
  * Mixage libre EP1 + EP2 + EP3
  * La phase (formatif/certificatif) se gère par élève par compétence dans l'évaluation
  * Expose : window.tpManager
@@ -18,8 +18,18 @@
     'EP3-C': {bg:'#1abc9c', light:'#d4f4e2'}
   };
 
+  var TYPE_LABELS = {
+    'TP': '🔧 TP',
+    'TD': '📝 TD',
+    'cours': '📖 Cours',
+    'interro': '📋 Interrogation',
+    'eval': '📊 Évaluation',
+    'autre': '📌 Autre'
+  };
+
   // État de sélection
   var _sel = { comps: {}, eleves: [], epFilters: ['EP1','EP2','EP3'] };
+  var _presetDate = null; // Date pré-remplie depuis le calendrier
 
   // ── Helpers ──
 
@@ -46,23 +56,63 @@
     return 'ACT-' + String(max + 1).padStart(3, '0');
   }
 
+  function _readFilesAsDataURL(input) {
+    if (!input || !input.files || !input.files.length) return Promise.resolve([]);
+    var promises = [];
+    for (var i = 0; i < input.files.length; i++) {
+      (function(file) {
+        promises.push(new Promise(function(resolve) {
+          var reader = new FileReader();
+          reader.onload = function(e) {
+            resolve({ name: file.name, type: file.type, size: file.size, data: e.target.result });
+          };
+          reader.onerror = function() { resolve(null); };
+          reader.readAsDataURL(file);
+        }));
+      })(input.files[i]);
+    }
+    return Promise.all(promises).then(function(results) {
+      return results.filter(function(r) { return r !== null; });
+    });
+  }
+
   // ══════════════════════════════════════════════════════════════
   // VUE LISTE / CRÉATION
   // ══════════════════════════════════════════════════════════════
 
-  function showCreate() {
+  function showCreate(date) {
     _sel = { comps: {}, eleves: [], epFilters: ['EP1','EP2','EP3'] };
+    _presetDate = date || null;
     document.getElementById('tpListView').style.display = 'none';
     document.getElementById('tpCreateView').style.display = 'block';
 
     var dateInput = document.getElementById('tpDate');
-    if (dateInput) dateInput.value = _today();
+    if (dateInput) dateInput.value = _presetDate || _today();
     var titreInput = document.getElementById('tpTitre');
     if (titreInput) titreInput.value = '';
+    var typeInput = document.getElementById('tpType');
+    if (typeInput) typeInput.value = 'TP';
 
+    // Peupler le select prof avec les évaluateurs configurés
+    _renderProfSelect();
     _renderEprFilters();
     _renderEleves();
     _renderComps();
+  }
+
+  function _renderProfSelect() {
+    var sel = document.getElementById('tpProf');
+    if (!sel) return;
+    var profName = (window.cfg && window.cfg.nomProf) || 'Moi';
+    var html = '<option value="">' + profName + '</option>';
+    // Ajouter les autres évaluateurs (depuis admin)
+    var evaluateurs = window.users || [];
+    evaluateurs.forEach(function(ev) {
+      if (ev.nom && ev.nom !== profName && ev.actif !== false) {
+        html += '<option value="' + ev.nom + '">' + ev.nom + '</option>';
+      }
+    });
+    sel.innerHTML = html;
   }
 
   function backToList() {
@@ -102,7 +152,7 @@
   }
 
   // ══════════════════════════════════════════════════════════════
-  // ÉLÈVES
+  // ÉLÈVES — avec groupes
   // ══════════════════════════════════════════════════════════════
 
   function _renderEleves() {
@@ -118,10 +168,12 @@
 
     zone.innerHTML = sts.map(function(s) {
       var sel = _sel.eleves.indexOf(s.code) !== -1;
+      var grpBadge = s.groupe ? ' <span style="font-size:.55rem;color:#888">' + s.groupe + '</span>' : '';
       return '<button type="button" onclick="tpManager.toggleEleve(\'' + s.code + '\')" '
         + 'class="btn ' + (sel ? 'btn-primary' : 'btn-ghost') + ' btn-sm" '
         + 'style="font-size:.78rem">'
         + (s.nom || '') + ' ' + (s.prenom ? s.prenom.charAt(0) + '.' : '')
+        + grpBadge
         + '</button>';
     }).join('');
     _updateElvCount();
@@ -141,14 +193,24 @@
     _renderEleves();
   }
 
+  function selectGroupe(grp) {
+    var sts = window.students || [];
+    if (grp === 'all') {
+      _sel.eleves = sts.map(function(s) { return s.code; });
+    } else {
+      // Sélectionner uniquement le groupe
+      _sel.eleves = sts.filter(function(s) { return s.groupe === grp; }).map(function(s) { return s.code; });
+    }
+    _renderEleves();
+  }
+
   function _updateElvCount() {
     var cnt = document.getElementById('tpElvCount');
     if (cnt) cnt.textContent = '(' + _sel.eleves.length + '/' + (window.students || []).length + ')';
   }
 
   // ══════════════════════════════════════════════════════════════
-  // COMPÉTENCES — sélection simple, pas de phase ici
-  // La phase se gère par élève dans l'évaluation
+  // COMPÉTENCES
   // ══════════════════════════════════════════════════════════════
 
   function _renderComps() {
@@ -253,9 +315,11 @@
   function submit() {
     var titre = (document.getElementById('tpTitre').value || '').trim();
     var date = document.getElementById('tpDate').value || _today();
+    var typeSession = document.getElementById('tpType') ? document.getElementById('tpType').value : 'TP';
+    var profSel = document.getElementById('tpProf') ? document.getElementById('tpProf').value : '';
     var compKeys = Object.keys(_sel.comps);
 
-    if (!titre) { window.toast('Saisissez un nom de TP', 'err'); return; }
+    if (!titre) { window.toast('Saisissez un nom de session', 'err'); return; }
     if (!compKeys.length) { window.toast('Cochez au moins une compétence', 'err'); return; }
 
     if (!window.appCfg) window.appCfg = {};
@@ -271,40 +335,60 @@
     var compsEpreuves = {};
     compKeys.forEach(function(k) { compsEpreuves[k] = _sel.comps[k].ep; });
 
-    // phasesElevesComps : { 'ELV-001': { 'C3.4': 'formatif', ... }, ... }
-    // Tout en formatif par défaut, basculable dans l'évaluation
+    // phasesElevesComps
     var phasesElevesComps = {};
     _sel.eleves.forEach(function(code) {
       phasesElevesComps[code] = {};
       compKeys.forEach(function(k) { phasesElevesComps[code][k] = 'formatif'; });
     });
 
+    var evaluateur = profSel || (window.cfg && window.cfg.nomProf) || '';
+
     var act = {
       id: _nextId(),
       titre: titre,
       date: date,
+      type: typeSession,
       epreuve: epreuve,
       epreuves: eprList,
       competences: compKeys,
       compsEpreuves: compsEpreuves,
       phasesElevesComps: phasesElevesComps,
-      evaluateur: (window.cfg && window.cfg.nomProf) || '',
+      evaluateur: evaluateur,
       phase: 'formatif',
       eleves: _sel.eleves.slice(),
       phasesEleves: {},
       photos: [],
+      docsEleve: [],
+      docsProf: [],
+      avecCorrection: false,
       obs: ''
     };
 
     _sel.eleves.forEach(function(code) { act.phasesEleves[code] = 'formatif'; });
 
-    window.appCfg.activites.push(act);
-    if (typeof window.saveLocal === 'function') window.saveLocal();
+    // Lecture des documents (async)
+    var docsEleveInput = document.getElementById('tpDocsEleve');
+    var docsProfInput = document.getElementById('tpDocsProf');
+    var avecCorr = document.getElementById('tpAvecCorrection');
+    act.avecCorrection = avecCorr ? avecCorr.checked : false;
 
-    var summary = compKeys.length + ' comp. (' + eprList.join('+') + '), ' + _sel.eleves.length + ' élèves';
-    window.toast('TP « ' + titre + ' » créé — ' + summary, 'ok');
+    Promise.all([
+      _readFilesAsDataURL(docsEleveInput),
+      _readFilesAsDataURL(docsProfInput)
+    ]).then(function(results) {
+      act.docsEleve = results[0];
+      act.docsProf = results[1];
 
-    backToList();
+      window.appCfg.activites.push(act);
+      if (typeof window.saveLocal === 'function') window.saveLocal();
+
+      var typeLabel = TYPE_LABELS[typeSession] || typeSession;
+      var summary = compKeys.length + ' comp. (' + eprList.join('+') + '), ' + _sel.eleves.length + ' élèves';
+      window.toast(typeLabel + ' « ' + titre + ' » créé — ' + summary, 'ok');
+
+      backToList();
+    });
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -319,7 +403,9 @@
     toggleAllComps: toggleAllComps,
     toggleEleve: toggleEleve,
     toggleAllEleves: toggleAllEleves,
-    submit: submit
+    selectGroupe: selectGroupe,
+    submit: submit,
+    TYPE_LABELS: TYPE_LABELS
   };
 
 })();

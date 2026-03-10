@@ -376,18 +376,44 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
         <div class="stat-card"><div class="stat-num" id="statClos" style="color:var(--vert)">—</div><div class="stat-lbl">Clôturés</div></div>
         <div class="stat-card"><div class="stat-num" id="statActifs" style="color:var(--teal)">—</div><div class="stat-lbl">En stage</div></div>
       </div>
+      <div style="display:flex;gap:.3rem;margin-bottom:.5rem;flex-wrap:wrap;align-items:center">
+        <select id="dashFiltreAnnee" onchange="renderDash()" style="padding:.2rem .4rem;border:1px solid var(--gris3);border-radius:6px;font-size:.75rem">
+          <option value="all">Toutes années</option>
+          <option value="1">1ère année</option>
+          <option value="2">2ème année</option>
+        </select>
+        <select id="dashFiltreGroupe" onchange="renderDash()" style="padding:.2rem .4rem;border:1px solid var(--gris3);border-radius:6px;font-size:.75rem">
+          <option value="all">Tous groupes</option>
+          <option value="G1">Groupe 1</option>
+          <option value="G2">Groupe 2</option>
+        </select>
+      </div>
       <div id="dashGrid" class="student-grid"><div class="empty" style="grid-column:1/-1"><div class="ei">⏳</div><p>Chargement...</p></div></div>
     </div></div>
 
     <!-- ÉLÈVES -->
     <div class="tab-pane" id="tab-eleves"><div class="tab-inner">
-      <div class="eleves-tb">
+      <div class="eleves-tb" style="flex-wrap:wrap">
         <button class="btn btn-primary btn-sm" onclick="showAddEleve()">➕ Ajouter</button>
-        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('importCsv').click()">📥 Import CSV/XLSX</button>
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('importCsv').click()">📥 Import</button>
         <input type="file" id="importCsv" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleImportFile(this.files[0])">
-        <button class="btn btn-ghost btn-sm" onclick="showQRAll()">📱 QR codes</button>
-        <button class="btn btn-ghost btn-sm" onclick="showScanner()">📷 Scanner</button>
+        <button class="btn btn-ghost btn-sm" onclick="showQRAll()">📱 QR</button>
+        <button class="btn btn-ghost btn-sm" onclick="showScanner()">📷 Scan</button>
         <button class="btn btn-ghost btn-sm" onclick="syncAll()">🔄 Sync</button>
+        <button class="btn btn-orange btn-sm" onclick="showPromotion()">🎓 Promotion</button>
+      </div>
+      <div style="display:flex;gap:.3rem;margin-bottom:.5rem;flex-wrap:wrap;align-items:center">
+        <span style="font-size:.72rem;font-weight:700;color:var(--gris)">Filtrer :</span>
+        <select id="filtreAnnee" onchange="renderEleves()" style="padding:.2rem .4rem;border:1px solid var(--gris3);border-radius:6px;font-size:.75rem">
+          <option value="all">Toutes années</option>
+          <option value="1">1ère année</option>
+          <option value="2">2ème année</option>
+        </select>
+        <select id="filtreGroupe" onchange="renderEleves()" style="padding:.2rem .4rem;border:1px solid var(--gris3);border-radius:6px;font-size:.75rem">
+          <option value="all">Tous groupes</option>
+          <option value="G1">Groupe 1</option>
+          <option value="G2">Groupe 2</option>
+        </select>
       </div>
       <div id="elevesList"><div class="empty"><div class="ei">👥</div><p>Aucun élève</p></div></div>
       <div class="card" style="margin-top:.5rem">
@@ -439,15 +465,14 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
     <!-- ACTIVITÉS PÉDAGOGIQUES -->
     <div class="tab-pane" id="tab-activites"><div class="tab-inner">
       <div class="stage-tabs" style="margin-bottom:.75rem">
-        <button class="stage-tab active" data-ap="liste" onclick="switchActPanel('liste')">📋 TP</button>
+        <button class="stage-tab active" data-ap="liste" onclick="switchActPanel('liste')">📋 Sessions</button>
         <button class="stage-tab" data-ap="ep2" onclick="switchActPanel('ep2')">🔧 EP2</button>
         <button class="stage-tab" data-ap="ep3" onclick="switchActPanel('ep3')">⚡ EP3</button>
       </div>
-      <!-- Panel EP2 dans Activités -->
       <div class="act-panel active" id="ap-liste">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
-        <span style="font-weight:800;color:var(--bleu);font-size:.9rem">📋 Bibliothèque de TP</span>
-        <button class="btn btn-primary btn-sm" onclick="tpManager.showCreate()">➕ Créer un TP</button>
+        <span style="font-weight:800;color:var(--bleu);font-size:.9rem">📋 Sessions de cours</span>
+        <button class="btn btn-primary btn-sm" onclick="tpManager.showCreate()">➕ Créer une session</button>
       </div>
       <!-- Vue liste des TP -->
       <div id="tpListView">
@@ -458,20 +483,53 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
         <div style="margin-bottom:.6rem">
           <button class="btn btn-ghost btn-sm" onclick="tpManager.backToList()">← Retour à la liste</button>
         </div>
-        <!-- Étape 1 : Config du TP -->
+        <!-- Étape 1 : Config de la session -->
         <div class="card" style="margin-bottom:.75rem">
-          <div style="font-weight:800;color:var(--bleu);margin-bottom:.5rem">📝 Informations du TP</div>
+          <div style="font-weight:800;color:var(--bleu);margin-bottom:.5rem">📝 Informations de la session</div>
           <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem">
-            <input id="tpTitre" type="text" placeholder="Nom du TP (ex: Brasage atelier S12)" style="flex:2;min-width:200px;padding:.4rem .6rem;border:2px solid var(--gris3);border-radius:8px;font-size:.85rem">
+            <input id="tpTitre" type="text" placeholder="Nom (ex: Brasage atelier S12)" style="flex:2;min-width:200px;padding:.4rem .6rem;border:2px solid var(--gris3);border-radius:8px;font-size:.85rem">
             <input id="tpDate" type="date" style="padding:.4rem .6rem;border:2px solid var(--gris3);border-radius:8px;font-size:.85rem">
           </div>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+            <select id="tpType" style="padding:.4rem .6rem;border:2px solid var(--gris3);border-radius:8px;font-size:.82rem">
+              <option value="TP">TP</option>
+              <option value="TD">TD</option>
+              <option value="cours">Cours</option>
+              <option value="interro">Interrogation</option>
+              <option value="eval">Évaluation</option>
+              <option value="autre">Autre</option>
+            </select>
+            <select id="tpProf" style="padding:.4rem .6rem;border:2px solid var(--gris3);border-radius:8px;font-size:.82rem">
+              <option value="">Prof : moi</option>
+            </select>
+          </div>
         </div>
-        <!-- Étape 2 : Sélection élèves -->
+        <!-- Documents -->
+        <div class="card" style="margin-bottom:.75rem">
+          <div style="font-weight:800;color:var(--bleu);margin-bottom:.5rem">📎 Documents</div>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.4rem">
+            <div style="flex:1;min-width:200px">
+              <div style="font-size:.72rem;font-weight:700;color:var(--teal);margin-bottom:.3rem">📄 Documents élève (visible par les élèves)</div>
+              <input type="file" id="tpDocsEleve" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.png" style="font-size:.75rem">
+              <div style="font-size:.62rem;color:#888;margin-top:.15rem">Sujet, fiche de travail...</div>
+              <div style="margin-top:.2rem"><label style="font-size:.7rem;cursor:pointer"><input type="checkbox" id="tpAvecCorrection"> Inclure la correction</label></div>
+            </div>
+            <div style="flex:1;min-width:200px">
+              <div style="font-size:.72rem;font-weight:700;color:var(--orange);margin-bottom:.3rem">🔒 Documents prof (confidentiel)</div>
+              <input type="file" id="tpDocsProf" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.png" style="font-size:.75rem">
+              <div style="font-size:.62rem;color:#888;margin-top:.15rem">Plan de séance, correction, ingénierie...</div>
+            </div>
+          </div>
+        </div>
+        <!-- Étape 2 : Sélection élèves avec groupes -->
         <div class="card" style="margin-bottom:.75rem">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
             <span style="font-weight:800;color:var(--bleu)">👥 Élèves</span>
-            <div style="display:flex;gap:.3rem">
-              <button class="btn btn-ghost btn-xs" onclick="tpManager.toggleAllEleves()">Tout cocher</button>
+            <div style="display:flex;gap:.3rem;align-items:center">
+              <button class="btn btn-ghost btn-xs" onclick="tpManager.selectGroupe('all')">Tous</button>
+              <button class="btn btn-ghost btn-xs" onclick="tpManager.selectGroupe('G1')">G1</button>
+              <button class="btn btn-ghost btn-xs" onclick="tpManager.selectGroupe('G2')">G2</button>
+              <button class="btn btn-ghost btn-xs" onclick="tpManager.toggleAllEleves()">Cocher/décocher</button>
               <span id="tpElvCount" style="font-size:.78rem;color:var(--gris);padding:.2rem .4rem">(0)</span>
             </div>
           </div>
@@ -490,7 +548,7 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
           <div id="tpCompsGrid"></div>
         </div>
         <!-- Bouton créer -->
-        <button class="btn btn-primary" onclick="tpManager.submit()" style="width:100%;padding:.7rem;font-size:.9rem;font-weight:700">✅ Créer et enregistrer le TP</button>
+        <button class="btn btn-primary" onclick="tpManager.submit()" style="width:100%;padding:.7rem;font-size:.9rem;font-weight:700">✅ Créer et enregistrer la session</button>
       </div>
       </div><!-- fin ap-liste -->
       <!-- Panel EP2 dans Activités -->
@@ -876,6 +934,7 @@ const CLASSES_DEFAUT=['CAP IFCA 1','CAP IFCA 2','2nde TNE','1ère MFER','Term MF
 let cfg={},appCfg={};
 let students=[],validations={},notes={},pfmpData={},partenaires=[],customCriteria={},compLocks={};
 let users=[],classes=[],adminJournal=[];
+window.users=users;
 let cur=null,curCtx='atelier',curSit='A',curPhase='formatif';
 let online=false,demoMode=false,isAdmin=false,currentUser=null;
 
@@ -1132,8 +1191,8 @@ function renderProgression(){
     const isToday=d===today.getDate()&&_progMonth===today.getMonth()&&_progYear===today.getFullYear();
     const bg=dayActs.length?'var(--bleu3)':isToday?'#fff8e1':'#fafafa';
     const border=isToday?'2px solid var(--orange)':'1px solid var(--gris3)';
-    cal+=`<div style="min-height:48px;background:${bg};border:${border};border-radius:6px;padding:2px;cursor:${dayActs.length?'pointer':'default'}" ${dayActs.length?`onclick="showDayActivities(${_progYear},${_progMonth},${d})"`:''}>`;
-    cal+=`<div style="font-size:.65rem;font-weight:700;color:${isToday?'var(--orange)':'#555'};text-align:right;padding-right:3px">${d}</div>`;
+    cal+=`<div style="min-height:48px;background:${bg};border:${border};border-radius:6px;padding:2px;cursor:pointer" onclick="${dayActs.length?`showDayActivities(${_progYear},${_progMonth},${d})`:`createFromCalendar(${_progYear},${_progMonth},${d})`}">`;
+    cal+=`<div style="font-size:.65rem;font-weight:700;color:${isToday?'var(--orange)':'#555'};text-align:right;padding-right:3px">${d}${!dayActs.length?'<span style="font-size:.45rem;color:var(--gris);float:left">+</span>':''}</div>`;
     if(dayActs.length){
       const maxShow=2;
       dayActs.slice(0,maxShow).forEach(a=>{
@@ -1194,6 +1253,12 @@ function showDayActivities(y,m,d){
     </div>`;
   }).join('');
   showModal('📅 '+dateFR(dateStr)+' — '+acts.length+' activité'+(acts.length>1?'s':''),html,'<button class="btn btn-ghost" onclick="closeModal()">Fermer</button>');
+}
+function createFromCalendar(y,m,d){
+  const dateStr=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+  switchTab('activites');
+  switchActPanel('liste');
+  tpManager.showCreate(dateStr);
 }
 function switchActPanel(p){
   document.querySelectorAll('.act-panel').forEach(x=>x.classList.remove('active'));
@@ -1261,8 +1326,20 @@ function renderDash(){
     ['statTotal','statAlertes','statClos','statActifs'].forEach(id=>document.getElementById(id).textContent='0');
     return;
   }
+  const dAnnee=document.getElementById('dashFiltreAnnee')?.value||'all';
+  const dGroupe=document.getElementById('dashFiltreGroupe')?.value||'all';
+  const filteredStudents=students.filter(s=>{
+    if(dAnnee!=='all'&&String(s.annee||1)!==dAnnee)return false;
+    if(dGroupe!=='all'&&(s.groupe||'')!==dGroupe)return false;
+    return true;
+  });
+  if(!filteredStudents.length){
+    g.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="ei">🔍</div><p>Aucun élève pour ce filtre</p></div>';
+    ['statTotal','statAlertes','statClos','statActifs'].forEach(id=>document.getElementById(id).textContent='0');
+    return;
+  }
   let al=0,cl=0,ac=0,journalAlerts=0;
-  const cards=students.map(s=>{
+  const cards=filteredStudents.map(s=>{
     const v=validations[s.code]||[];
     const e2done=new Set(v.filter(x=>x.epreuve==='EP2').map(x=>x.competence)).size;
     const e3done=new Set(v.filter(x=>x.epreuve==='EP3').map(x=>x.competence)).size;
@@ -1326,7 +1403,7 @@ function renderDash(){
     </div>`;
   });
   g.innerHTML=cards.join('');
-  document.getElementById('statTotal').textContent=students.length;
+  document.getElementById('statTotal').textContent=filteredStudents.length;
   document.getElementById('statAlertes').textContent=al;
   document.getElementById('statClos').textContent=cl;
   document.getElementById('statActifs').textContent=ac;
@@ -2186,7 +2263,15 @@ async function doDevrouille(ep){
 function renderEleves(){
   const c=document.getElementById('elevesList');
   if(!students.length){c.innerHTML='<div class="empty"><div class="ei">👥</div><p>Aucun élève. Ajoutez votre classe.</p></div>';return;}
-  c.innerHTML=students.map(s=>{
+  const fAnnee=document.getElementById('filtreAnnee')?.value||'all';
+  const fGroupe=document.getElementById('filtreGroupe')?.value||'all';
+  const filtered=students.filter(s=>{
+    if(fAnnee!=='all'&&String(s.annee||1)!==fAnnee)return false;
+    if(fGroupe!=='all'&&(s.groupe||'')!==fGroupe)return false;
+    return true;
+  });
+  if(!filtered.length){c.innerHTML='<div class="alert al-info" style="font-size:.8rem">Aucun élève pour ce filtre</div>';return;}
+  c.innerHTML=filtered.map(s=>{
     const trk=stageTracking(s.code);
     const alert=getAlertColor(trk.days);
     // Mini barre 7 jours compacte
@@ -2206,14 +2291,15 @@ function renderEleves(){
     <div class="el-av">${(s.nom||'?')[0]}${s.prenom?s.prenom[0]:''}</div>
     <div style="flex:1;cursor:pointer" onclick="goEval('${s.code}')">
       <div class="el-nom">${s.nom} ${s.prenom||''}</div>
-      <div class="el-meta">${s.classe||'—'} · <span style="font-family:'JetBrains Mono',monospace;font-size:.65rem">${s.code}</span></div>
+      <div class="el-meta">${s.classe||'—'}${s.groupe?' · '+s.groupe:''} · A${s.annee||1} · <span style="font-family:'JetBrains Mono',monospace;font-size:.65rem">${s.code}</span></div>
       ${stageInfo}
     </div>
     <div class="el-act">
+      <button class="btn btn-ghost btn-xs" onclick="showEditGroupe('${s.code}')" title="Groupe">👥</button>
       <button class="btn btn-ghost btn-xs" onclick="previewPageEleve('${s.code}')" title="Voir page élève">👁️E</button>
       <button class="btn btn-ghost btn-xs" onclick="previewPageTuteur('${s.code}')" title="Voir page tuteur">👁️T</button>
       <button class="btn btn-ghost btn-xs" onclick="viewStagePhotos('${s.code}')" title="Photos stage">📷</button>
-      <button class="btn btn-ghost btn-xs" onclick="if(window.activModule)activModule.showStudentHistory('${s.code}')" title="Historique activités">📋</button>
+      <button class="btn btn-ghost btn-xs" onclick="if(window.activModule)activModule.showStudentHistory('${s.code}')" title="Historique">📋</button>
       <button class="btn btn-ghost btn-xs" onclick="showQR('${s.code}')">📱</button>
       <button class="btn btn-rouge btn-xs" onclick="confirmDel('${s.code}')">🗑️</button>
     </div>
@@ -2224,24 +2310,80 @@ function renderEleves(){
 function showAddEleve(){
   showModal('➕ Ajouter un élève',`
     <div class="grid2"><div class="fr"><label>Nom</label><input id="aNom" placeholder="DUPONT"></div><div class="fr"><label>Prénom</label><input id="aPrenom" placeholder="Martin"></div></div>
-    <div class="fr" style="margin-top:.5rem"><label>Classe</label><select id="aClasse"><option>CAP IFCA 1</option><option>CAP IFCA 2</option><option>2nde TNE</option><option>1ère MFER</option><option>Term MFER</option></select></div>
-    <div class="grid2" style="margin-top:.5rem"><div class="fr"><label>PFMP 1 (semaines)</label><input type="number" id="aPfmp1" value="3" min="1" max="8"></div><div class="fr"><label>PFMP 2 (semaines)</label><input type="number" id="aPfmp2" value="3" min="1" max="8"></div></div>`,
+    <div class="grid2" style="margin-top:.5rem">
+      <div class="fr"><label>Classe</label><select id="aClasse"><option>CAP IFCA 1</option><option>CAP IFCA 2</option><option>2nde TNE</option><option>1ère MFER</option><option>Term MFER</option></select></div>
+      <div class="fr"><label>Groupe</label><select id="aGroupe"><option value="">—</option><option value="G1">Groupe 1</option><option value="G2">Groupe 2</option></select></div>
+    </div>
+    <div class="grid2" style="margin-top:.5rem">
+      <div class="fr"><label>Année</label><select id="aAnnee"><option value="1">1ère année</option><option value="2">2ème année</option></select></div>
+      <div class="fr"><label>PFMP 1 (sem.)</label><input type="number" id="aPfmp1" value="3" min="1" max="8"></div>
+    </div>
+    <div class="fr" style="margin-top:.5rem"><label>PFMP 2 (semaines)</label><input type="number" id="aPfmp2" value="3" min="1" max="8"></div>`,
     `<button class="btn btn-primary" onclick="doAddEleve()">✅ Ajouter</button><button class="btn btn-ghost" onclick="closeModal()">Annuler</button>`);
 }
 async function doAddEleve(){
   const nom=document.getElementById('aNom').value.trim().toUpperCase();
   const prenom=document.getElementById('aPrenom').value.trim();
   const classe=document.getElementById('aClasse').value;
+  const groupe=document.getElementById('aGroupe')?.value||'';
+  const annee=parseInt(document.getElementById('aAnnee')?.value)||1;
   if(!nom){toast('Nom obligatoire','err');return;}
   closeModal();showSpinner();
   try{
-    const r=await apiCall({action:'addEleve',data:{nom,prenom,classe,referentiel:'CAP_IFCA',pfmp1_sem:parseInt(document.getElementById('aPfmp1')?.value)||3,pfmp2_sem:parseInt(document.getElementById('aPfmp2')?.value)||3}});
+    const r=await apiCall({action:'addEleve',data:{nom,prenom,classe,groupe,annee,referentiel:'CAP_IFCA',pfmp1_sem:parseInt(document.getElementById('aPfmp1')?.value)||3,pfmp2_sem:parseInt(document.getElementById('aPfmp2')?.value)||3}});
     await syncAll();toast(`${nom} ajouté · ${r.code}`,'ok');
   }catch{
     const code='ELV-'+String(students.length+1).padStart(3,'0');
-    students.push({code,nom,prenom,classe,statut:'actif',referentiel:'CAP_IFCA',token_eleve:Math.random().toString(36).substring(2,10).toUpperCase(),token_tuteur:Math.random().toString(36).substring(2,10).toUpperCase()});
+    students.push({code,nom,prenom,classe,groupe,annee,statut:'actif',referentiel:'CAP_IFCA',token_eleve:Math.random().toString(36).substring(2,10).toUpperCase(),token_tuteur:Math.random().toString(36).substring(2,10).toUpperCase()});
+    window.students=students;
     saveLocal();updateAll();toast(`${nom} ajouté localement (sync en attente)`,'warn');
   }finally{hideSpinner();}
+}
+function showPromotion(){
+  const a1=students.filter(s=>(s.annee||1)===1);
+  if(!a1.length){toast('Aucun élève en 1ère année','warn');return;}
+  const rows=a1.map(s=>`<div style="display:flex;align-items:center;gap:.5rem;padding:.3rem .5rem;border-bottom:1px solid var(--gris3)">
+    <input type="checkbox" class="promo-cb" value="${s.code}" id="promo-${s.code}">
+    <label for="promo-${s.code}" style="flex:1;font-size:.82rem;cursor:pointer"><strong>${s.nom}</strong> ${s.prenom||''} <span style="color:var(--gris);font-size:.7rem">${s.classe||''} ${s.groupe||''}</span></label>
+  </div>`).join('');
+  showModal('🎓 Promotion en 2ème année',`
+    <div class="alert al-info" style="margin-bottom:.5rem;font-size:.78rem">Sélectionnez les élèves qui passent en 2ème année. Leurs données (évaluations, stages) seront conservées.</div>
+    <div style="margin-bottom:.5rem"><button class="btn btn-ghost btn-xs" onclick="document.querySelectorAll('.promo-cb').forEach(c=>c.checked=!c.checked)">Tout cocher/décocher</button></div>
+    <div style="max-height:50vh;overflow-y:auto">${rows}</div>`,
+    `<button class="btn btn-primary" onclick="doPromotion()">🎓 Valider la promotion</button><button class="btn btn-ghost" onclick="closeModal()">Annuler</button>`);
+}
+function doPromotion(){
+  const codes=[];
+  document.querySelectorAll('.promo-cb:checked').forEach(cb=>codes.push(cb.value));
+  if(!codes.length){toast('Aucun élève sélectionné','warn');return;}
+  codes.forEach(code=>{
+    const s=students.find(x=>x.code===code);
+    if(s){
+      s.annee=2;
+      // Mettre à jour la classe si elle contient un numéro d'année
+      if(s.classe)s.classe=s.classe.replace(/\b1\b/,'2');
+    }
+  });
+  window.students=students;
+  saveLocal();updateAll();closeModal();
+  toast(`${codes.length} élève${codes.length>1?'s':''} promu${codes.length>1?'s':''} en 2ème année`,'ok');
+}
+function showEditGroupe(code){
+  const s=students.find(x=>x.code===code);if(!s)return;
+  showModal('👥 Groupe — '+s.nom,`
+    <div class="fr"><label>Groupe</label><select id="editGroupe">
+      <option value="" ${!s.groupe?'selected':''}>Aucun</option>
+      <option value="G1" ${s.groupe==='G1'?'selected':''}>Groupe 1</option>
+      <option value="G2" ${s.groupe==='G2'?'selected':''}>Groupe 2</option>
+    </select></div>`,
+    `<button class="btn btn-primary" onclick="doEditGroupe('${code}')">✅ Valider</button><button class="btn btn-ghost" onclick="closeModal()">Annuler</button>`);
+}
+function doEditGroupe(code){
+  const s=students.find(x=>x.code===code);if(!s)return;
+  s.groupe=document.getElementById('editGroupe').value;
+  window.students=students;
+  saveLocal();closeModal();renderEleves();
+  toast('Groupe mis à jour','ok');
 }
 function confirmDel(code){
   const s=students.find(x=>x.code===code);if(!s)return;
