@@ -583,17 +583,24 @@
       body += '<div style="font-size:.78rem;color:var(--gris)">✏️ Évaluateur : ' + act.evaluateur + '</div>';
     }
 
-    // Photos / preuves
-    body += '<div style="margin-top:.75rem"><div style="font-weight:700;margin-bottom:.3rem">📷 Photos / Preuves</div>';
-    body += '<div id="actPhotos-' + act.id + '" style="display:flex;flex-wrap:wrap;gap:.3rem">';
-    (act.photos || []).forEach(function(p, i) {
-      body += '<img src="' + p + '" style="width:60px;height:60px;object-fit:cover;border-radius:6px;cursor:pointer" onclick="window.open(this.src)">';
-    });
-    if (!(act.photos || []).length) body += '<span style="font-size:.72rem;color:#aaa">Aucune photo</span>';
+    // Photos / preuves (via photosModule IndexedDB)
+    body += '<div style="margin-top:.75rem"><div style="font-weight:700;margin-bottom:.3rem">📷 Photos / PDF — Preuves</div>';
+    body += '<div id="actDetailGallery" style="margin-bottom:.4rem"><div style="font-size:.72rem;color:#aaa">Chargement...</div></div>';
+    // Sélecteur d'élève pour attribuer la photo
+    if ((act.eleves||[]).length) {
+      body += '<div style="display:flex;align-items:center;gap:.4rem;margin-top:.4rem;flex-wrap:wrap">';
+      body += '<select id="detailPhotoStu" style="padding:.3rem .5rem;border:1px solid #ddd;border-radius:6px;font-size:.75rem">';
+      (act.eleves || []).forEach(function(code) {
+        body += '<option value="' + code + '">' + _studentName(code) + '</option>';
+      });
+      body += '</select>';
+      body += '<label style="display:inline-flex;align-items:center;gap:.3rem;padding:.3rem .6rem;background:var(--bleu2);color:#fff;'
+        + 'border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer">📸 Ajouter photo/PDF'
+        + '<input type="file" accept="image/*,.pdf,application/pdf" multiple data-actphoto="' + act.id + '" style="display:none">'
+        + '</label>';
+      body += '</div>';
+    }
     body += '</div>';
-    body += '<label style="display:inline-block;margin-top:.3rem;padding:.3rem .6rem;background:var(--bleu2);color:#fff;'
-      + 'border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer">📸 Ajouter photo'
-      + '<input type="file" accept="image/*" capture="environment" data-actphoto="' + act.id + '" style="display:none"></label></div>';
 
     body += '</div>';
 
@@ -610,19 +617,47 @@
 
     window.showModal('📋 ' + (act.titre || 'Activité'), body, actions);
 
-    // Listener ajout photo en base64 dans activite.photos[]
+    // Charger la galerie photos depuis IndexedDB
+    if (window.photosModule) {
+      window.photosModule.getActivityPhotos(act.id).then(function(photos) {
+        var gal = document.getElementById('actDetailGallery');
+        if (gal) gal.innerHTML = window.photosModule.renderActivityGallery(act.id, photos);
+      });
+    } else {
+      var gal = document.getElementById('actDetailGallery');
+      if (gal) gal.innerHTML = '<span style="font-size:.72rem;color:#aaa">Module photos non chargé</span>';
+    }
+
+    // Listener ajout photo/PDF dans le détail
     var fi = document.querySelector('input[data-actphoto="' + act.id + '"]');
-    if (fi) fi.addEventListener('change', function() {
-      if (!this.files.length) return;
-      var reader = new FileReader();
-      reader.onload = function(e) {
-        if (!act.photos) act.photos = [];
-        act.photos.push(e.target.result);
-        if (typeof window.saveLocal === 'function') window.saveLocal();
-        _showDetail(act.id);
-      };
-      reader.readAsDataURL(this.files[0]);
-    });
+    if (fi) {
+      fi.addEventListener('change', function() {
+        var self = this;
+        if (!self.files.length) return;
+        var stuSel = document.getElementById('detailPhotoStu');
+        var stu = stuSel ? stuSel.value : ((act.eleves||[])[0] || '');
+        var remaining = 10; // MAX_PHOTOS
+        var toProcess = Array.from(self.files).slice(0, remaining);
+        var done = 0;
+        toProcess.forEach(function(file) {
+          window.photosModule.addPhoto(file, {
+            studentCode: stu, actId: act.id, epreuve: act.epreuve,
+            compCode: '', phase: act.phase || 'formatif'
+          }).then(function() {
+            done++;
+            if (done === toProcess.length) {
+              window.toast(done + ' fichier(s) ajouté(s)', 'ok');
+              self.value = '';
+              // Rafraîchir la galerie
+              window.photosModule.getActivityPhotos(act.id).then(function(photos) {
+                var gal = document.getElementById('actDetailGallery');
+                if (gal) gal.innerHTML = window.photosModule.renderActivityGallery(act.id, photos);
+              });
+            }
+          });
+        });
+      });
+    }
   }
 
   // ══════════════════════════════════════════════════════════════
