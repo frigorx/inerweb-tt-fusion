@@ -2579,88 +2579,182 @@ async function loadTuteurEvals(){
 function afficherEvalTuteur(code){
   const c=document.getElementById('tuteurEvalContenu');
   if(!code){c.innerHTML='<div class="empty"><div class="ei">🏢</div><p>Sélectionnez un élève</p></div>';return;}
-  // Chercher dans les validations les entrées tuteur (__obs_tuteur__ ou source tuteur)
-  const vals=(validations[code]||[]).filter(v=>v.phase==='tuteur'||v.evaluateur?.toLowerCase().includes('tuteur')||v.competence==='__obs_tuteur__');
-  if(!vals.length){
-    c.innerHTML=`<div class="alert al-info">Aucune évaluation tuteur reçue pour cet élève.</div>`;
-    return;
-  }
-  // Grouper par timestamp/session
+
   const NIVEAUX_COMP={
     "C1.2":"Communiquer","C3.1":"Organisation poste","C3.2":"Identifier réseaux",
-    "C3.3":"Implanter, fixer","C3.4":"Façonner, raccorder","C3.6":"Câbler, connecter",
-    "C3.7":"Contrôles","C3.8":"Tri déchets","C3.9":"Étanchéité"
+    "C3.3":"Implanter, fixer","C3.4":"Façonner, raccorder","C3.5":"Soudure/PER",
+    "C3.6":"Câbler, connecter","C3.7":"Contrôles","C3.8":"Tri déchets","C3.9":"Étanchéité"
   };
   const BEHAV_NOM={ponctualite:"Ponctualité",tenue:"Tenue/EPI",relations:"Relations équipe",initiative:"Initiative",consignes:"Consignes/sécurité",progression:"Progression"};
-  const NIVEAUX_TXT=["Non acquis","En cours","Acquis","Maîtrisé"];
-  const NIVEAUX_CLR=["var(--rouge2)","var(--jaune2)","var(--vert2)","var(--bleu3)"];
+  const NV_BTN=['NE','NA','EC','M','PM'];
+  const NV_CLR={NE:'var(--gris2)',NA:'var(--rouge2)',EC:'var(--jaune2)',M:'var(--vert2)',PM:'var(--bleu3)'};
 
-  // Trouver les payloads complets (source tuteur enrichi)
-  const payloads=(validations[code]||[]).filter(v=>v._tuteurPayload);
-  const obsEntries=vals.filter(v=>v.competence==='__obs_tuteur__');
+  // Évals tuteur
+  const valsTuteur=(validations[code]||[]).filter(v=>v.phase==='tuteur'||v.evaluateur?.toLowerCase().includes('tuteur')||v.competence==='__obs_tuteur__');
+  // Évals prof stage
+  const valsProf=(validations[code]||[]).filter(v=>v.phase==='prof_stage');
+
+  // Charger les notes prof existantes
+  const profNotes={};
+  valsProf.forEach(v=>{
+    if(v.competence&&v.competence!=='__obs_prof_stage__'){
+      profNotes[v.competence]=v.niveau;
+    }
+  });
+  const profObs=valsProf.find(v=>v.competence==='__obs_prof_stage__');
 
   let html='';
-  obsEntries.forEach(v=>{
-    const payload=v._tuteurPayload||{};
-    const comp=payload.competences||{};
-    const behav=payload.comportement||{};
-    const date=v.timestamp?new Date(v.timestamp).toLocaleDateString('fr-FR'):'—';
 
-    html+=`<div class="card" style="border-left:4px solid var(--teal);margin-bottom:.75rem">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.75rem">
-        <div>
-          <div style="font-weight:900;color:var(--teal);font-size:.9rem">🏢 ${v.entreprise||'Entreprise'}</div>
-          <div style="font-size:.75rem;color:var(--gris)">Tuteur : ${v.evaluateur||'—'} · ${v.contexte||''} · ${date}</div>
-        </div>
-        <span style="background:var(--teal2);color:var(--teal);font-size:.65rem;font-weight:800;padding:.2rem .5rem;border-radius:20px">${v.niveau||'—'}</span>
+  // ── SECTION TUTEUR ──
+  const obsEntries=valsTuteur.filter(v=>v.competence==='__obs_tuteur__');
+  if(obsEntries.length){
+    obsEntries.forEach(v=>{
+      const payload=v._tuteurPayload||{};
+      const comp=payload.competences||{};
+      const behav=payload.comportement||{};
+      const date=v.timestamp?new Date(v.timestamp).toLocaleDateString('fr-FR'):'—';
+
+      html+=`<div class="card" style="border-left:4px solid var(--teal);margin-bottom:.75rem">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:.5rem">
+          <div>
+            <div style="font-weight:900;color:var(--teal);font-size:.9rem">🏢 Évaluation Tuteur</div>
+            <div style="font-size:.75rem;color:var(--gris)">Tuteur : ${v.evaluateur||'—'} · ${v.entreprise||'—'} · ${v.contexte||''} · ${date}</div>
+          </div>
+          <span style="background:var(--teal2);color:var(--teal);font-size:.65rem;font-weight:800;padding:.2rem .5rem;border-radius:20px">${v.niveau||'—'}</span>
+        </div>`;
+
+      // Compétences évaluées par tuteur
+      const compEntries=Object.entries(comp).filter(([k,v])=>v.niveau&&v.niveau!=='NE');
+      if(compEntries.length){
+        html+=`<div style="font-size:.75rem;font-weight:800;color:var(--bleu);margin-bottom:.4rem">Compétences évaluées :</div>`;
+        html+=`<div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.75rem">`;
+        compEntries.forEach(([k,cv])=>{
+          const n=cv.niveau;
+          html+=`<span style="background:${NV_CLR[n]||'var(--gris2)'};padding:.2rem .5rem;border-radius:20px;font-size:.7rem;font-weight:800">${k} ${n}</span>`;
+        });
+        html+=`</div>`;
+      }
+
+      // Comportement
+      const behavEntries=Object.entries(behav);
+      if(behavEntries.length){
+        html+=`<div style="font-size:.75rem;font-weight:800;color:var(--bleu);margin-bottom:.4rem">Comportement :</div>`;
+        html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:.3rem;margin-bottom:.75rem">`;
+        behavEntries.forEach(([k,niv])=>{
+          const clr=niv===0?'var(--rouge2)':niv===1?'var(--jaune2)':niv===2?'var(--vert2)':'var(--bleu3)';
+          html+=`<div style="background:${clr};padding:.35rem .5rem;border-radius:6px;font-size:.7rem;font-weight:700">${BEHAV_NOM[k]||k} : ${niv}/3</div>`;
+        });
+        html+=`</div>`;
+      }
+
+      // Observation tuteur
+      if(v.observation){
+        html+=`<div style="background:var(--gris2);border-radius:8px;padding:.6rem .75rem;font-size:.8rem;font-style:italic;color:var(--texte)">"${v.observation}"</div>`;
+      }
+      html+=`</div>`;
+    });
+  } else if(valsTuteur.length){
+    html+='<div class="card" style="border-left:4px solid var(--teal);margin-bottom:.75rem"><div style="font-weight:900;color:var(--teal);font-size:.85rem;margin-bottom:.5rem">🏢 Évaluation Tuteur (format simplifié)</div>';
+    valsTuteur.forEach(v=>{
+      html+=`<div style="display:flex;gap:.3rem;align-items:center;margin-bottom:.3rem;font-size:.78rem">
+        <span style="font-weight:700">${v.competence}</span>
+        <span style="background:${NV_CLR[v.niveau]||'var(--gris2)'};padding:.1rem .4rem;border-radius:12px;font-size:.68rem;font-weight:700">${v.niveau}</span>
+        <span style="color:var(--gris);font-size:.65rem">${v.evaluateur||'—'}</span>
       </div>`;
+    });
+    html+='</div>';
+  } else {
+    html+='<div class="alert al-info" style="margin-bottom:.75rem">Aucune évaluation tuteur reçue pour cet élève.</div>';
+  }
 
-    // Compétences évaluées
-    const compEntries=Object.entries(comp).filter(([k,v])=>v.niveau&&v.niveau!=='NE');
-    if(compEntries.length){
-      html+=`<div style="font-size:.75rem;font-weight:800;color:var(--bleu);margin-bottom:.4rem">Compétences EP2 :</div>`;
-      html+=`<div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.75rem">`;
-      compEntries.forEach(([k,cv])=>{
-        const n=cv.niveau;
-        const clr=n==='PM'?'var(--vert2)':n==='M'?'var(--bleu3)':n==='EC'?'var(--jaune2)':'var(--gris2)';
-        html+=`<span style="background:${clr};padding:.2rem .5rem;border-radius:20px;font-size:.7rem;font-weight:800">${k} ${n}</span>`;
-      });
-      html+=`</div>`;
-    }
+  // ── SECTION PROF — Mon évaluation stage ──
+  html+=`<div class="card" style="border-left:4px solid var(--bleu);margin-bottom:.75rem">
+    <div style="font-weight:900;color:var(--bleu);font-size:.9rem;margin-bottom:.5rem">📝 Mon évaluation stage (prof)</div>
+    <div style="font-size:.72rem;color:#888;margin-bottom:.6rem">Mon regard sur l'évaluation du stage. Ces notes coexistent avec celles du tuteur — ce sont les miennes qui prédominent pour le CCF.</div>`;
 
-    // Comportement
-    const behavEntries=Object.entries(behav);
-    if(behavEntries.length){
-      html+=`<div style="font-size:.75rem;font-weight:800;color:var(--bleu);margin-bottom:.4rem">Comportement :</div>`;
-      html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:.3rem;margin-bottom:.75rem">`;
-      behavEntries.forEach(([k,niv])=>{
-        const clr=niv===0?'var(--rouge2)':niv===1?'var(--jaune2)':niv===2?'var(--vert2)':'var(--bleu3)';
-        html+=`<div style="background:${clr};padding:.35rem .5rem;border-radius:6px;font-size:.7rem;font-weight:700">${BEHAV_NOM[k]||k} : ${niv}/3</div>`;
-      });
-      html+=`</div>`;
+  // Grille compétences prof
+  html+=`<div style="font-size:.75rem;font-weight:800;color:var(--bleu);margin-bottom:.4rem">Compétences EP2 (PFMP) :</div>`;
+  const compCodes=Object.keys(NIVEAUX_COMP);
+  compCodes.forEach(cc=>{
+    const tuteurNiv=_getTuteurNiv(valsTuteur,cc);
+    const profNiv=profNotes[cc]||'NE';
+    html+=`<div style="display:flex;align-items:center;gap:.3rem;margin-bottom:.4rem;flex-wrap:wrap;padding:.3rem;border-radius:6px;background:#fafafa">`;
+    html+=`<span style="font-weight:700;font-size:.75rem;min-width:35px;color:var(--bleu)">${cc}</span>`;
+    html+=`<span style="font-size:.7rem;color:#555;flex:1;min-width:80px">${NIVEAUX_COMP[cc]}</span>`;
+    // Tuteur badge
+    if(tuteurNiv&&tuteurNiv!=='NE'){
+      html+=`<span style="background:var(--teal2);color:var(--teal);padding:.1rem .35rem;border-radius:10px;font-size:.6rem;font-weight:700" title="Note tuteur">🏢 ${tuteurNiv}</span>`;
     }
-
-    // Observation
-    if(v.observation){
-      html+=`<div style="background:var(--gris2);border-radius:8px;padding:.6rem .75rem;font-size:.8rem;font-style:italic;color:var(--texte)">"${v.observation}"</div>`;
-    }
+    // Boutons prof
+    NV_BTN.forEach(n=>{
+      const sel=(profNiv===n);
+      const bg=sel?NV_CLR[n]:'#fff';
+      const brd=sel?'transparent':'#ddd';
+      html+=`<button type="button" onclick="setProfStageNiv('${code}','${cc}','${n}')" `
+        +`style="padding:.15rem .3rem;border:1.5px solid ${brd};background:${bg};border-radius:5px;`
+        +`font-size:.62rem;font-weight:${sel?'800':'600'};min-width:24px;cursor:pointer;`
+        +`color:${sel?'#333':'#888'}">${n}</button>`;
+    });
     html+=`</div>`;
   });
 
-  // Si pas de payload enrichi, afficher les validations brutes
-  if(!obsEntries.length){
-    html='<div class="alert al-info" style="font-size:.8rem">Évaluations reçues (format simplifié) :</div>';
-    vals.forEach(v=>{
-      html+=`<div class="card" style="border-left:3px solid var(--teal);margin-bottom:.5rem;padding:.75rem">
-        <div style="font-size:.75rem;font-weight:800;color:var(--teal)">${v.evaluateur||'Tuteur'} — ${v.entreprise||''}</div>
-        <div style="font-size:.8rem;margin:.3rem 0">${v.epreuve} ${v.competence} → <strong>${v.niveau}</strong></div>
-        ${v.observation?`<div style="font-size:.75rem;font-style:italic;color:var(--gris)">"${v.observation}"</div>`:''}
-        <div style="font-size:.65rem;color:var(--gris);margin-top:.3rem">${v.timestamp?new Date(v.timestamp).toLocaleDateString('fr-FR'):'—'} · ${v.contexte||''}</div>
-      </div>`;
-    });
-  }
+  // Observation prof
+  const profObsVal=profObs?profObs.niveau:'';
+  html+=`<div style="margin-top:.6rem"><div style="font-size:.75rem;font-weight:800;color:var(--bleu);margin-bottom:.3rem">Observation prof :</div>`;
+  html+=`<textarea id="profStageObs_${code}" rows="2" placeholder="Mon appréciation du stage..." `
+    +`style="width:100%;padding:.4rem .5rem;border:1px solid #ddd;border-radius:6px;font-size:.78rem;resize:vertical;box-sizing:border-box">${profObsVal}</textarea>`;
+  html+=`<button type="button" onclick="saveProfStageObs('${code}')" `
+    +`style="margin-top:.3rem;padding:.3rem .7rem;background:var(--bleu2);color:#fff;border:none;border-radius:6px;font-size:.72rem;font-weight:700;cursor:pointer">💾 Enregistrer observation</button>`;
+  html+=`</div></div>`;
 
-  c.innerHTML=html||'<div class="alert al-info">Aucune donnée disponible.</div>';
+  c.innerHTML=html;
+}
+
+function _getTuteurNiv(valsTuteur,compCode){
+  // Chercher dans les payloads enrichis
+  for(let i=0;i<valsTuteur.length;i++){
+    const p=valsTuteur[i]._tuteurPayload;
+    if(p&&p.competences&&p.competences[compCode]&&p.competences[compCode].niveau){
+      return p.competences[compCode].niveau;
+    }
+  }
+  // Chercher dans les validations directes
+  const v=valsTuteur.find(v=>v.competence===compCode);
+  return v?v.niveau:null;
+}
+
+function setProfStageNiv(code,compCode,niv){
+  // Sauvegarder en tant que validation prof_stage
+  if(!validations[code])validations[code]=[];
+  // Supprimer l'ancienne note prof pour cette compétence
+  validations[code]=validations[code].filter(v=>!(v.phase==='prof_stage'&&v.competence===compCode));
+  // Ajouter la nouvelle
+  validations[code].push({
+    epreuve:'EP2',competence:compCode,critere:'',niveau:niv,
+    evaluateur:cfg.nomProf||'Prof',timestamp:new Date().toISOString(),
+    phase:'prof_stage',contexte:'pfmp1'
+  });
+  window.validations=validations;
+  saveLocal();
+  // Rafraîchir
+  afficherEvalTuteur(code);
+  toast(`${compCode} → ${niv} (prof stage)`,'ok');
+}
+
+function saveProfStageObs(code){
+  const ta=document.getElementById('profStageObs_'+code);
+  if(!ta)return;
+  if(!validations[code])validations[code]=[];
+  // Supprimer l'ancienne obs prof stage
+  validations[code]=validations[code].filter(v=>!(v.phase==='prof_stage'&&v.competence==='__obs_prof_stage__'));
+  validations[code].push({
+    epreuve:'EP2',competence:'__obs_prof_stage__',critere:'',niveau:ta.value,
+    evaluateur:cfg.nomProf||'Prof',timestamp:new Date().toISOString(),
+    phase:'prof_stage',contexte:'pfmp1'
+  });
+  window.validations=validations;
+  saveLocal();
+  toast('Observation stage enregistrée','ok');
 }
 function handleDeepLink(){
   const p=new URLSearchParams(window.location.search);
