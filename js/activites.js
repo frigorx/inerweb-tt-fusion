@@ -14,17 +14,21 @@
   'use strict';
 
   var COULEURS = {
+    'EP1':   {bg:'#e67e22', light:'#fef5e7'},
     'EP2':   {bg:'#2d5a8c', light:'#e8f0f8'},
     'EP3-A': {bg:'#9b59b6', light:'#f3e5f5'},
     'EP3-B': {bg:'#3498db', light:'#d1ecf1'},
-    'EP3-C': {bg:'#1abc9c', light:'#d4f4e2'}
+    'EP3-C': {bg:'#1abc9c', light:'#d4f4e2'},
+    'MIXTE': {bg:'#555',    light:'#f5f5f5'}
   };
 
   var EP_LABELS = {
+    'EP1':   'EP1 — Étude',
     'EP2':   'EP2 — Réalisation',
     'EP3-A': 'EP3-A — Mise en service',
     'EP3-B': 'EP3-B — Maintenance',
-    'EP3-C': 'EP3-C — Documents'
+    'EP3-C': 'EP3-C — Documents',
+    'MIXTE': 'Mixte EP1+EP2+EP3'
   };
 
   // Garde-fou : appCfg doit exister
@@ -63,6 +67,7 @@
   }
 
   function _compsForEpreuve(epr) {
+    if (epr === 'EP1') return window.COMP_EP1 || [];
     if (epr === 'EP2') return window.COMP_EP2 || [];
     var sit = epr.replace('EP3-', '');
     return (window.COMP_EP3 || []).filter(function (c) {
@@ -71,12 +76,36 @@
   }
 
   function _contextForEpreuve(epr) {
+    if (epr === 'EP1') return 'ecrit';
     if (epr === 'EP2') return 'atelier';
     return epr.replace('EP3-', '');
   }
 
   function _epForPush(epr) {
+    if (epr === 'EP1') return 'EP1';
     return epr.startsWith('EP3') ? 'EP3' : 'EP2';
+  }
+
+  /** Trouve la définition d'une compétence dans toutes les épreuves */
+  function _findComp(code) {
+    var all = (window.COMP_EP1 || []).concat(window.COMP_EP2 || []).concat(window.COMP_EP3 || []);
+    return all.find(function(c) { return c.code === code; });
+  }
+
+  /** Détermine l'EP de push pour un code compétence donné dans une activité */
+  function _epForComp(act, compCode) {
+    if (act.compsEpreuves && act.compsEpreuves[compCode]) {
+      return _epForPush(act.compsEpreuves[compCode]);
+    }
+    return _epForPush(act.epreuve);
+  }
+
+  /** Détermine le contexte pour un code compétence donné dans une activité */
+  function _ctxForComp(act, compCode) {
+    if (act.compsEpreuves && act.compsEpreuves[compCode]) {
+      return _contextForEpreuve(act.compsEpreuves[compCode]);
+    }
+    return _contextForEpreuve(act.epreuve);
   }
 
   function _studentName(code) {
@@ -162,7 +191,7 @@
         + '<strong style="font-size:.88rem;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
         + (act.titre || 'Sans titre') + '</strong>'
         + '<span style="background:' + c.bg + ';color:#fff;padding:.15rem .5rem;border-radius:8px;'
-        + 'font-size:.7rem;font-weight:700;white-space:nowrap">' + act.epreuve + '</span>'
+        + 'font-size:.7rem;font-weight:700;white-space:nowrap">' + (act.epreuves ? act.epreuves.join('+') : act.epreuve) + '</span>'
         + '</div>'
         + '<div style="display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;margin-top:.4rem;font-size:.75rem;color:var(--gris)">'
         + '<span>📅 ' + _dateFR(act.date) + '</span>'
@@ -264,11 +293,7 @@
     var zone = document.getElementById('actEvalZone');
     if (!zone) return;
 
-    var ep = _epForPush(act.epreuve);
-    var ctx = _contextForEpreuve(act.epreuve);
     var c = COULEURS[act.epreuve] || {bg:'#555',light:'#f5f5f5'};
-    var allComps = (ep === 'EP2') ? (window.COMP_EP2 || []) : (window.COMP_EP3 || []);
-    var critsRef = (ep === 'EP2') ? window.CRIT2 : window.CRIT3;
 
     var ePh = _phaseEleve(act, studentCode);
     var isF = (ePh === 'formatif');
@@ -286,28 +311,39 @@
     html += '</div>';
 
     (act.competences || []).forEach(function(compCode) {
-      var comp = allComps.find(function(x){ return x.code === compCode; });
+      var compEp = _epForComp(act, compCode);
+      var compCtx = _ctxForComp(act, compCode);
+      var compEpOrig = (act.compsEpreuves && act.compsEpreuves[compCode]) || act.epreuve;
+      var cc = COULEURS[compEpOrig] || c;
+
+      var comp = _findComp(compCode);
       if (!comp) return;
 
-      var lv = window.getLv(studentCode, ep, compCode);
+      var lv = window.getLv(studentCode, compEp, compCode);
       var lvDisplay = lv || 'NE';
       var lvcls = 'lv-' + (lv ? lv.toLowerCase().replace('-', '-') : 'ne');
 
-      var crits = (critsRef && critsRef[compCode]) ? (critsRef[compCode][ctx] || []) : [];
+      var critsRef = (compEp === 'EP1') ? window.CRIT1 : (compEp === 'EP2') ? window.CRIT2 : window.CRIT3;
+      var crits = (critsRef && critsRef[compCode]) ? (critsRef[compCode][compCtx] || []) : [];
       var customCrits = (window.customCriteria && window.customCriteria[studentCode])
-        ? ((window.customCriteria[studentCode][ep] || {})[compCode] || []) : [];
+        ? ((window.customCriteria[studentCode][compEp] || {})[compCode] || []) : [];
       var allCrits = crits.concat(customCrits);
+
+      // Phase par compétence si dispo
+      var compPhase = (act.phasesComps && act.phasesComps[compCode]) || act.phase || 'formatif';
+      var compPhaseIcon = compPhase === 'certificatif' ? '📙' : '📘';
 
       var startOpen = (act.competences || []).length <= 2;
 
       // Bloc compétence
-      html += '<div style="margin-bottom:.5rem;border:1px solid ' + c.bg + '33;border-radius:10px;overflow:hidden">';
+      html += '<div style="margin-bottom:.5rem;border:1px solid ' + cc.bg + '33;border-radius:10px;overflow:hidden">';
 
       // En-tête
       html += '<div data-act="toggleBlock" style="display:flex;align-items:center;gap:.4rem;padding:.5rem .7rem;'
-        + 'background:' + c.light + ';cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,.1)">';
-      html += '<span style="font-weight:800;color:' + c.bg + ';font-size:.82rem">' + compCode + '</span>';
+        + 'background:' + cc.light + ';cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,.1)">';
+      html += '<span style="font-weight:800;color:' + cc.bg + ';font-size:.82rem">' + compCode + '</span>';
       html += '<span style="flex:1;font-size:.78rem;color:#333">' + comp.nom + '</span>';
+      html += '<span style="font-size:.6rem;padding:.1rem .3rem;border-radius:4px;background:' + cc.bg + '22;color:' + cc.bg + '">' + compPhaseIcon + ' ' + compEpOrig + '</span>';
       html += '<span class="badge ' + lvcls + '" style="font-size:.7rem;font-weight:700;padding:.15rem .4rem;border-radius:6px">' + lvDisplay + '</span>';
       html += '<span class="actArrow" style="font-size:.7rem">' + (startOpen ? '▲' : '▼') + '</span>';
       html += '</div>';
@@ -320,7 +356,7 @@
       if (allCrits.length) {
         html += '<div style="margin-bottom:.5rem">';
         allCrits.forEach(function(cr) {
-          var cv = window.getVal(studentCode, ep, compCode, cr);
+          var cv = window.getVal(studentCode, compEp, compCode, cr);
           html += '<div style="display:flex;align-items:center;gap:.3rem;margin-bottom:.3rem;flex-wrap:wrap">';
           html += '<span style="flex:1;min-width:100px;font-size:.72rem;color:#444">' + cr + '</span>';
           html += '<div style="display:flex;gap:.15rem">';
@@ -329,7 +365,7 @@
             html += '<button type="button" data-act="evalCrit" '
               + 'data-stu="' + studentCode + '" data-comp="' + compCode + '" '
               + 'data-crit="' + encodeURIComponent(cr) + '" data-niv="' + n + '" '
-              + 'data-epr="' + act.epreuve + '" '
+              + 'data-epr="' + compEpOrig + '" '
               + 'style="padding:.2rem .35rem;border:1.5px solid;border-radius:5px;font-size:.65rem;font-weight:700;'
               + 'min-width:28px;cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,.1);'
               + _btnStyle(n, sel) + '">'
@@ -347,7 +383,7 @@
         var sel = (lv === n);
         html += '<button type="button" data-act="evalGlobal" '
           + 'data-stu="' + studentCode + '" data-comp="' + compCode + '" '
-          + 'data-niv="' + n + '" data-epr="' + act.epreuve + '" '
+          + 'data-niv="' + n + '" data-epr="' + compEpOrig + '" '
           + 'style="padding:.25rem .45rem;border:2px solid;border-radius:6px;font-size:.72rem;font-weight:800;'
           + 'min-width:32px;cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,.1);'
           + _btnStyle(n, sel) + '">'
@@ -356,8 +392,8 @@
       html += '</div>';
 
       // Observation
-      var obs = window.getObs(studentCode, ep, compCode);
-      html += '<textarea data-obsstu="' + studentCode + '" data-obscomp="' + compCode + '" data-obsepr="' + act.epreuve + '" '
+      var obs = window.getObs(studentCode, compEp, compCode);
+      html += '<textarea data-obsstu="' + studentCode + '" data-obscomp="' + compCode + '" data-obsepr="' + compEpOrig + '" '
         + 'placeholder="Observation ' + compCode + '..." rows="1" '
         + 'style="width:100%;margin-top:.3rem;padding:.3rem .5rem;border:1px solid #ddd;border-radius:6px;font-size:.72rem;'
         + 'resize:vertical;box-sizing:border-box">' + (obs || '') + '</textarea>';
@@ -558,10 +594,14 @@
     body += '<div style="font-weight:700;margin-bottom:.3rem">🎯 Compétences ciblées</div>';
     body += '<div style="display:flex;flex-wrap:wrap;gap:.3rem;margin-bottom:.75rem">';
     (act.competences || []).forEach(function(code) {
-      var comp = (window.COMP_EP2 || []).concat(window.COMP_EP3 || []).find(function(x){ return x.code === code; });
-      body += '<span style="background:' + c.light + ';border:1px solid ' + c.bg + '44;color:' + c.bg
+      var comp = _findComp(code);
+      var compEpOrig = (act.compsEpreuves && act.compsEpreuves[code]) || act.epreuve;
+      var cc = COULEURS[compEpOrig] || c;
+      var compPhase = (act.phasesComps && act.phasesComps[code]) || act.phase || 'formatif';
+      var phIcon = compPhase === 'certificatif' ? '📙' : '📘';
+      body += '<span style="background:' + cc.light + ';border:1px solid ' + cc.bg + '44;color:' + cc.bg
         + ';padding:.2rem .5rem;border-radius:8px;font-size:.75rem;font-weight:600">'
-        + code + (comp ? ' ' + comp.nom : '') + '</span>';
+        + phIcon + ' ' + code + (comp ? ' ' + comp.nom : '') + '</span>';
     });
     body += '</div>';
 

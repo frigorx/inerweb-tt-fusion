@@ -455,10 +455,8 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
             <input id="tpTitre" type="text" placeholder="Nom du TP (ex: Brasage atelier S12)" style="flex:2;min-width:200px;padding:.4rem .6rem;border:2px solid var(--gris3);border-radius:8px;font-size:.85rem">
             <input id="tpDate" type="date" style="padding:.4rem .6rem;border:2px solid var(--gris3);border-radius:8px;font-size:.85rem">
           </div>
-          <div style="font-weight:700;font-size:.82rem;margin-bottom:.3rem">Épreuve</div>
-          <div id="tpEprBtns" style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.5rem"></div>
         </div>
-        <!-- Étape 2 : Sélection élèves (même style que EP2) -->
+        <!-- Étape 2 : Sélection élèves -->
         <div class="card" style="margin-bottom:.75rem">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
             <span style="font-weight:800;color:var(--bleu)">👥 Élèves</span>
@@ -469,15 +467,16 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
           </div>
           <div id="tpElevesGrid" style="display:flex;flex-wrap:wrap;gap:.3rem"></div>
         </div>
-        <!-- Étape 3 : Compétences (même rendu que compBlock) -->
+        <!-- Étape 3 : Compétences — mixage libre EP1/EP2/EP3 -->
         <div class="card" style="margin-bottom:.75rem">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
             <span style="font-weight:800;color:var(--bleu)">🎯 Compétences à évaluer</span>
-            <div style="display:flex;gap:.3rem">
-              <button class="btn btn-ghost btn-xs" onclick="tpManager.toggleAllComps()">Tout cocher</button>
-              <span id="tpCompCount" style="font-size:.78rem;color:var(--gris);padding:.2rem .4rem">(0)</span>
-            </div>
+            <span id="tpCompCount" style="font-size:.78rem;color:var(--gris);padding:.2rem .4rem">(0)</span>
           </div>
+          <div style="font-size:.72rem;color:#888;margin-bottom:.5rem">Cochez les compétences. Cliquez 📘/📙 pour basculer formatif/certificatif par compétence.</div>
+          <!-- Filtres EP -->
+          <div id="tpEprFilters" style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.6rem"></div>
+          <!-- Blocs par épreuve -->
           <div id="tpCompsGrid"></div>
         </div>
         <!-- Bouton créer -->
@@ -716,6 +715,22 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
    [M] Init */
 
 /* ═══ [A] RÉFÉRENTIEL ═══ */
+const COMP_EP1=[
+  {code:"C1.1",nom:"Compléter docs",    full:"Compléter et transmettre des documents",                obl:true, poids:1.5,ep:"EP1"},
+  {code:"C1.2",nom:"Communiquer",       full:"Communiquer avec les différents acteurs",               obl:true, poids:1,  ep:"EP1"},
+  {code:"C2.1",nom:"Décoder",           full:"Décoder un dossier technique",                          obl:true, poids:2,  ep:"EP1"},
+  {code:"C2.2",nom:"Choisir matériels", full:"Choisir les matériels et outillages",                   obl:true, poids:2,  ep:"EP1"},
+  {code:"C2.3",nom:"Planifier",         full:"Planifier une intervention",                            obl:true, poids:1.5,ep:"EP1"},
+  {code:"C2.4",nom:"Quantifier",        full:"Quantifier les matériels et matériaux",                 obl:false,poids:1,  ep:"EP1"},
+];
+const CRIT1={
+  "C1.1":{ecrit:["Documents complétés correctement","Informations transmises","Vocabulaire technique adapté"]},
+  "C1.2":{ecrit:["Identification des acteurs","Échanges adaptés","Compte-rendu clair"]},
+  "C2.1":{ecrit:["Plans et schémas lus correctement","Symboles identifiés","Cotations exploitées"]},
+  "C2.2":{ecrit:["Matériels adaptés à l'installation","Outillage correctement choisi","Références vérifiées"]},
+  "C2.3":{ecrit:["Étapes ordonnées","Contraintes identifiées","Durées estimées"]},
+  "C2.4":{ecrit:["Quantités calculées","Unités correctes","Liste de matériaux complète"]},
+};
 const COMP_EP2=[
   {code:"C1.2",nom:"Communiquer",     full:"Communiquer avec les différents acteurs",              obl:false,poids:1,   lieux:["dossier"]},
   {code:"C3.1",nom:"Organisation",    full:"Organiser le poste de travail",                        obl:true, poids:1.5, lieux:["atelier","pfmp1","pfmp2"]},
@@ -804,8 +819,8 @@ let cur=null,curCtx='atelier',curSit='A',curPhase='formatif';
 let online=false,demoMode=false,isAdmin=false,currentUser=null;
 
 /* Exposer les données globales pour les modules js/ externes */
-window.COMP_EP2=COMP_EP2;window.COMP_EP3=COMP_EP3;
-window.CRIT2=CRIT2;window.CRIT3=CRIT3;
+window.COMP_EP1=COMP_EP1;window.COMP_EP2=COMP_EP2;window.COMP_EP3=COMP_EP3;
+window.CRIT1=CRIT1;window.CRIT2=CRIT2;window.CRIT3=CRIT3;
 window.SIT_INFO=SIT_INFO;window.NV=NV;window.NV_PCT=NV_PCT;window.NV_LBL=NV_LBL;
 const SK='inerweb-tt-prof-v4',SCFG='inerweb-tt-cfg',SPART='inerweb-tt-parts',SUSERS='inerweb-tt-users',SCLASSES='inerweb-tt-classes',SJOURNAL='inerweb-tt-journal';
 const DB_NAME='inerwebtt-db',DB_VERSION=2;
