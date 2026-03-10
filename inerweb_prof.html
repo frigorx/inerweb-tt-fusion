@@ -230,6 +230,7 @@ body.show-app #screen-app{display:flex;}
 .stage-tab{padding:.35rem .75rem;border-radius:20px;border:2px solid var(--gris3);background:#fff;cursor:pointer;font-weight:700;font-size:.75rem;transition:var(--t);}
 .stage-tab.active{background:var(--teal);color:#fff;border-color:var(--teal);}
 .stage-panel{display:none;}.stage-panel.active{display:block;}
+.act-panel{display:none;}.act-panel.active{display:block;}
 .se-card{background:#fff;border-radius:var(--r);padding:.9rem;margin-bottom:.6rem;box-shadow:var(--ombre2);border-left:4px solid var(--stage);}
 .se-nom{font-weight:800;font-size:.9rem;}.se-meta{font-size:.7rem;color:var(--gris);font-weight:600;}
 .se-co{font-size:.8rem;color:var(--teal);font-weight:700;}
@@ -352,15 +353,17 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
   <nav class="top-nav">
     <button class="nav-btn active" data-tab="dashboard" onclick="switchTab('dashboard')"><span class="ni">🏠</span>Tableau</button>
     <button class="nav-btn" data-tab="eleves" onclick="switchTab('eleves')"><span class="ni">👥</span>Élèves</button>
-    <button class="nav-btn" data-tab="ep2" onclick="switchTab('ep2')"><span class="ni">🔧</span>EP2</button>
-    <button class="nav-btn" data-tab="ep3" onclick="switchTab('ep3')"><span class="ni">⚡</span>EP3</button>
     <button class="nav-btn" data-tab="activites" onclick="switchTab('activites')"><span class="ni">📋</span>Activités</button>
+    <button class="nav-btn" data-tab="progression" onclick="switchTab('progression')"><span class="ni">📅</span>Progression</button>
     <button class="nav-btn" data-tab="stage" onclick="switchTab('stage')"><span class="ni">🏢</span>Stage</button>
     <button class="nav-btn" data-tab="bilan" onclick="switchTab('bilan')"><span class="ni">🏆</span>Bilan</button>
     <button class="nav-btn" data-tab="rapport" onclick="switchTab('rapport')"><span class="ni">📝</span>Rapport</button>
     <button class="nav-btn" data-tab="export" onclick="switchTab('export')"><span class="ni">📤</span>Export</button>
     <button class="nav-btn" data-tab="config" onclick="switchTab('config')"><span class="ni">⚙️</span>Config</button>
     <button class="nav-btn" data-tab="admin" onclick="switchTab('admin')" id="navAdmin" style="display:none"><span class="ni">👑</span>Admin</button>
+    <!-- EP2/EP3 tab-pane gardés mais accessibles via Activités uniquement -->
+    <button class="nav-btn" data-tab="ep2" onclick="switchTab('ep2')" style="display:none"><span class="ni">🔧</span>EP2</button>
+    <button class="nav-btn" data-tab="ep3" onclick="switchTab('ep3')" style="display:none"><span class="ni">⚡</span>EP3</button>
   </nav>
 
   <main class="main-content">
@@ -435,6 +438,13 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
 
     <!-- ACTIVITÉS PÉDAGOGIQUES -->
     <div class="tab-pane" id="tab-activites"><div class="tab-inner">
+      <div class="stage-tabs" style="margin-bottom:.75rem">
+        <button class="stage-tab active" data-ap="liste" onclick="switchActPanel('liste')">📋 TP</button>
+        <button class="stage-tab" data-ap="ep2" onclick="switchActPanel('ep2')">🔧 EP2</button>
+        <button class="stage-tab" data-ap="ep3" onclick="switchActPanel('ep3')">⚡ EP3</button>
+      </div>
+      <!-- Panel EP2 dans Activités -->
+      <div class="act-panel active" id="ap-liste">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
         <span style="font-weight:800;color:var(--bleu);font-size:.9rem">📋 Bibliothèque de TP</span>
         <button class="btn btn-primary btn-sm" onclick="tpManager.showCreate()">➕ Créer un TP</button>
@@ -482,6 +492,57 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
         <!-- Bouton créer -->
         <button class="btn btn-primary" onclick="tpManager.submit()" style="width:100%;padding:.7rem;font-size:.9rem;font-weight:700">✅ Créer et enregistrer le TP</button>
       </div>
+      </div><!-- fin ap-liste -->
+      <!-- Panel EP2 dans Activités -->
+      <div class="act-panel" id="ap-ep2">
+        <div class="eval-hdr">
+          <div class="eval-sel-wrap">
+            <select id="selEP2b" onchange="selectStudent(this.value,'ep2');renderEP2()"></select>
+            <div class="nav-arrows"><button onclick="navStudent(-1,'ep2')">◀</button><button onclick="navStudent(1,'ep2')">▶</button></div>
+          </div>
+          <span class="badge b-ep2">EP2 — Réalisation</span>
+        </div>
+        <div class="ctx-tabs">
+          <button class="ctx-tab active" data-ctx="atelier" onclick="switchCtx('atelier')">🏭 Atelier</button>
+          <button class="ctx-tab" data-ctx="pfmp1" onclick="switchCtx('pfmp1')">🏢 PFMP 1</button>
+          <button class="ctx-tab" data-ctx="pfmp2" onclick="switchCtx('pfmp2')">🏢 PFMP 2</button>
+          <button class="ctx-tab" data-ctx="dossier" onclick="switchCtx('dossier')">📁 Dossier</button>
+        </div>
+        <div id="ep2Listb"></div>
+      </div>
+      <!-- Panel EP3 dans Activités -->
+      <div class="act-panel" id="ap-ep3">
+        <div class="eval-hdr">
+          <div class="eval-sel-wrap">
+            <select id="selEP3b" onchange="selectStudent(this.value,'ep3');renderEP3()"></select>
+            <div class="nav-arrows"><button onclick="navStudent(-1,'ep3')">◀</button><button onclick="navStudent(1,'ep3')">▶</button></div>
+          </div>
+          <span class="badge b-ep3">EP3 — Entretien & MeS</span>
+        </div>
+        <div class="ctx-tabs">
+          <button class="ctx-tab sit active" data-sit="A" onclick="switchSit('A')">⚙️ Sit. A</button>
+          <button class="ctx-tab sit" data-sit="B" onclick="switchSit('B')">🔍 Sit. B</button>
+          <button class="ctx-tab sit" data-sit="C" onclick="switchSit('C')">📋 Sit. C</button>
+        </div>
+        <div id="ep3Listb"></div>
+      </div>
+    </div></div>
+
+    <!-- PROGRESSION -->
+    <div class="tab-pane" id="tab-progression"><div class="tab-inner">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;flex-wrap:wrap;gap:.5rem">
+        <span style="font-weight:800;color:var(--bleu);font-size:.9rem">📅 Progression — Calendrier des activités</span>
+        <div style="display:flex;gap:.3rem;align-items:center">
+          <select id="progFilter" onchange="renderProgression()" style="padding:.3rem .5rem;border:2px solid var(--gris3);border-radius:8px;font-size:.8rem">
+            <option value="all">Toute la classe</option>
+          </select>
+          <button class="btn btn-ghost btn-xs" onclick="progPrevMonth()">◀</button>
+          <span id="progMonthLabel" style="font-weight:700;font-size:.85rem;min-width:100px;text-align:center"></span>
+          <button class="btn btn-ghost btn-xs" onclick="progNextMonth()">▶</button>
+        </div>
+      </div>
+      <div id="progCalendar" style="margin-bottom:1rem"></div>
+      <div id="progTimeline"></div>
     </div></div>
 
     <!-- STAGE -->
@@ -1031,7 +1092,123 @@ function switchTab(tab){
   if(tab==='stage'){renderStage();loadTuteurEvals();}
   if(tab==='export'){renderJournal();renderBackupList();}
   if(tab==='eleves')renderEleves();
+  if(tab==='progression')renderProgression();
   if(tab==='admin')renderAdminTab();
+}
+var _progMonth=new Date().getMonth(),_progYear=new Date().getFullYear();
+function progPrevMonth(){_progMonth--;if(_progMonth<0){_progMonth=11;_progYear--;}renderProgression();}
+function progNextMonth(){_progMonth++;if(_progMonth>11){_progMonth=0;_progYear++;}renderProgression();}
+function renderProgression(){
+  const mois=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  document.getElementById('progMonthLabel').textContent=mois[_progMonth]+' '+_progYear;
+  // Peupler filtre élèves
+  const sel=document.getElementById('progFilter');
+  const curVal=sel.value;
+  const opts='<option value="all">Toute la classe</option>'+students.map(s=>`<option value="${s.code}">${s.nom} ${s.prenom||''}</option>`).join('');
+  sel.innerHTML=opts;
+  sel.value=curVal||'all';
+  const filterCode=sel.value;
+  // Collecter activités du mois
+  const acts=(window.appCfg?.activites||[]).filter(a=>{
+    const d=new Date(a.date);
+    if(d.getMonth()!==_progMonth||d.getFullYear()!==_progYear)return false;
+    if(filterCode!=='all'&&a.eleves&&a.eleves.indexOf(filterCode)===-1)return false;
+    return true;
+  });
+  // Calendrier grille
+  const first=new Date(_progYear,_progMonth,1);
+  const lastDay=new Date(_progYear,_progMonth+1,0).getDate();
+  const startDay=(first.getDay()+6)%7;// lundi=0
+  const joursNom=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+  // Indexer activités par jour
+  const byDay={};
+  acts.forEach(a=>{const d=parseInt(a.date.split('-')[2],10);if(!byDay[d])byDay[d]=[];byDay[d].push(a);});
+  let cal='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:.5rem">';
+  joursNom.forEach(j=>{cal+=`<div style="text-align:center;font-weight:700;font-size:.65rem;color:var(--gris);padding:.2rem">${j}</div>`;});
+  for(let i=0;i<startDay;i++)cal+='<div></div>';
+  const today=new Date();
+  for(let d=1;d<=lastDay;d++){
+    const dayActs=byDay[d]||[];
+    const isToday=d===today.getDate()&&_progMonth===today.getMonth()&&_progYear===today.getFullYear();
+    const bg=dayActs.length?'var(--bleu3)':isToday?'#fff8e1':'#fafafa';
+    const border=isToday?'2px solid var(--orange)':'1px solid var(--gris3)';
+    cal+=`<div style="min-height:48px;background:${bg};border:${border};border-radius:6px;padding:2px;cursor:${dayActs.length?'pointer':'default'}" ${dayActs.length?`onclick="showDayActivities(${_progYear},${_progMonth},${d})"`:''}>`;
+    cal+=`<div style="font-size:.65rem;font-weight:700;color:${isToday?'var(--orange)':'#555'};text-align:right;padding-right:3px">${d}</div>`;
+    if(dayActs.length){
+      const maxShow=2;
+      dayActs.slice(0,maxShow).forEach(a=>{
+        const epColors={'EP1':'var(--orange)','EP2':'var(--ep2)','EP3':'var(--ep3)','MIXTE':'var(--bleu)'};
+        const epC=epColors[a.epreuve]||'var(--gris)';
+        cal+=`<div style="font-size:.5rem;background:${epC};color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.titre||a.id}</div>`;
+      });
+      if(dayActs.length>maxShow)cal+=`<div style="font-size:.48rem;color:var(--gris);text-align:center">+${dayActs.length-maxShow}</div>`;
+    }
+    cal+='</div>';
+  }
+  cal+='</div>';
+  document.getElementById('progCalendar').innerHTML=cal;
+  // Timeline chronologique
+  const sorted=[...acts].sort((a,b)=>a.date.localeCompare(b.date));
+  if(!sorted.length){
+    document.getElementById('progTimeline').innerHTML='<div class="alert al-info" style="font-size:.8rem">Aucune activité ce mois-ci'+(filterCode!=='all'?' pour cet élève':'')+'. Créez des TP dans l\'onglet Activités.</div>';
+    return;
+  }
+  const epColors={'EP1':'var(--orange)','EP2':'var(--ep2)','EP3':'var(--ep3)','MIXTE':'var(--bleu)'};
+  let tl='<div style="font-weight:700;font-size:.8rem;color:var(--bleu);margin-bottom:.4rem">Chronologie</div>';
+  sorted.forEach(a=>{
+    const epC=epColors[a.epreuve]||'var(--gris)';
+    const nbEleves=a.eleves?a.eleves.length:0;
+    const nbComps=a.competences?a.competences.length:0;
+    const eprStr=a.epreuves?a.epreuves.join('+'):a.epreuve;
+    tl+=`<div style="display:flex;gap:.5rem;align-items:flex-start;margin-bottom:.4rem;padding:.4rem .6rem;background:#fafafa;border-radius:8px;border-left:4px solid ${epC}">
+      <div style="min-width:55px;font-size:.7rem;font-weight:700;color:var(--gris)">${dateFR(a.date)}</div>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:.78rem">${a.titre||a.id} <span class="badge" style="background:${epC};color:#fff;font-size:.55rem">${eprStr}</span></div>
+        <div style="font-size:.65rem;color:#666">${nbComps} comp. · ${nbEleves} élèves · ${a.evaluateur||''}</div>
+      </div>
+      <button class="btn btn-ghost btn-xs" onclick="if(window.activModule)activModule.showDetail('${a.id}')" title="Détail">📋</button>
+    </div>`;
+  });
+  document.getElementById('progTimeline').innerHTML=tl;
+}
+function showDayActivities(y,m,d){
+  const dateStr=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+  const filterCode=document.getElementById('progFilter')?.value||'all';
+  const acts=(window.appCfg?.activites||[]).filter(a=>{
+    if(a.date!==dateStr)return false;
+    if(filterCode!=='all'&&a.eleves&&a.eleves.indexOf(filterCode)===-1)return false;
+    return true;
+  });
+  if(!acts.length)return;
+  const epColors={'EP1':'var(--orange)','EP2':'var(--ep2)','EP3':'var(--ep3)','MIXTE':'var(--bleu)'};
+  const html=acts.map(a=>{
+    const epC=epColors[a.epreuve]||'var(--gris)';
+    const eprStr=a.epreuves?a.epreuves.join('+'):a.epreuve;
+    const elevesStr=a.eleves?(a.eleves.map(c=>{const s=students.find(x=>x.code===c);return s?(s.nom+' '+(s.prenom||'')[0]+'.'):c;}).join(', ')):'';
+    const compsStr=a.competences?a.competences.join(', '):'';
+    return `<div style="border-left:4px solid ${epC};padding:.5rem .7rem;margin-bottom:.5rem;background:#fafafa;border-radius:0 8px 8px 0">
+      <div style="font-weight:700;font-size:.85rem">${a.titre||a.id} <span class="badge" style="background:${epC};color:#fff;font-size:.6rem">${eprStr}</span></div>
+      <div style="font-size:.72rem;color:#555;margin-top:.2rem">Compétences : ${compsStr}</div>
+      <div style="font-size:.72rem;color:#555">Élèves : ${elevesStr||'aucun'}</div>
+      <div style="margin-top:.3rem"><button class="btn btn-ghost btn-xs" onclick="closeModal();if(window.activModule)activModule.showDetail('${a.id}')">Ouvrir le détail</button></div>
+    </div>`;
+  }).join('');
+  showModal('📅 '+dateFR(dateStr)+' — '+acts.length+' activité'+(acts.length>1?'s':''),html,'<button class="btn btn-ghost" onclick="closeModal()">Fermer</button>');
+}
+function switchActPanel(p){
+  document.querySelectorAll('.act-panel').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('[data-ap]').forEach(t=>t.classList.toggle('active',t.dataset.ap===p));
+  document.getElementById('ap-'+p)?.classList.add('active');
+  if(p==='ep2'){popSelectsAct('ep2');renderEP2();}
+  if(p==='ep3'){popSelectsAct('ep3');renderEP3();}
+}
+function popSelectsAct(ep){
+  const suffix='b';
+  const sel=document.getElementById('sel'+(ep==='ep2'?'EP2':'EP3')+suffix);
+  if(!sel)return;
+  sel.innerHTML=students.map(s=>`<option value="${s.code}">${s.nom} ${s.prenom||''}</option>`).join('');
+  if(cur)sel.value=cur;
+  else if(students.length){cur=students[0].code;sel.value=cur;}
 }
 function selectStudent(code,ctx){
   cur=code;
@@ -1048,9 +1225,9 @@ function navStudent(dir,ctx){
 }
 function popSelects(){
   const html=students.map(s=>`<option value="${s.code}">${s.nom} ${s.prenom||''} — ${s.classe||''}</option>`).join('');
-  ['selEP2','selEP3','selBilan'].forEach(id=>{const e=document.getElementById(id);if(e)e.innerHTML=html||'<option>Aucun élève</option>';});
+  ['selEP2','selEP3','selBilan','selEP2b','selEP3b'].forEach(id=>{const e=document.getElementById(id);if(e)e.innerHTML=html||'<option>Aucun élève</option>';});
   if(!cur&&students.length)cur=students[0].code;
-  if(cur)['selEP2','selEP3','selBilan'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=cur;});
+  if(cur)['selEP2','selEP3','selBilan','selEP2b','selEP3b'].forEach(id=>{const e=document.getElementById(id);if(e)e.value=cur;});
 }
 function switchCtx(ctx){
   curCtx=ctx;
@@ -1101,8 +1278,18 @@ function renderDash(){
     if(alerte||journalAlert)al++;if(clos)cl++;if(s.statut==='actif')ac++;
     const cls=clos?'complet':alerte||journalAlert?'alerte':e2done>0?'en-cours':'';
     const jColor=getAlertColor?.(daysSinceJournal)||{ico:'❓'};
-    return `<div class="sc ${cls}" onclick="goEval('${s.code}')">
-      <div class="sc-top">
+    // Suivi stage compact
+    const trk=stageTracking(s.code);
+    const miniBar=trk.bar.map(b=>{
+      const bg=b.ok?'var(--vert)':b.partial?'var(--jaune)':'var(--gris3)';
+      return `<div title="${b.date}" style="width:12px;height:12px;border-radius:2px;background:${bg}"></div>`;
+    }).join('');
+    const pI=trk.lastPhoto===null?'🔴':trk.lastPhoto>=4?'🔴':trk.lastPhoto>=2?'🟡':'🟢';
+    const cI=trk.lastComment===null?'🔴':trk.lastComment>=4?'🔴':trk.lastComment>=2?'🟡':'🟢';
+    // Nombre d'activités de l'élève
+    const nbActs=(window.appCfg?.activites||[]).filter(a=>a.eleves&&a.eleves.indexOf(s.code)!==-1).length;
+    return `<div class="sc ${cls}">
+      <div class="sc-top" style="cursor:pointer" onclick="goEval('${s.code}')">
         <div><div class="sc-nom">${s.nom} ${s.prenom||''}</div><div class="sc-cls">${s.classe||'—'}</div></div>
         <div style="text-align:right">
           <span class="sc-code">${s.code}</span>
@@ -1114,11 +1301,28 @@ function renderDash(){
           </div>
         </div>
       </div>
-      <div>
+      <div onclick="goEval('${s.code}')" style="cursor:pointer">
         <div class="sc-bar-row"><span style="color:var(--ep2)">EP2</span><div class="sc-track"><div class="sc-fill f-ep2" style="width:${e2pct}%"></div></div><span>${e2done}/${COMP_EP2.length}</span></div>
         <div class="sc-bar-row"><span style="color:var(--ep3)">EP3</span><div class="sc-track"><div class="sc-fill f-ep3" style="width:${e3pct}%"></div></div><span>${e3done}/${COMP_EP3.length}</span></div>
       </div>
-      <div class="sc-bot">🕐 ${s.derniere_eval?dateFR(s.derniere_eval):'Jamais évalué'}${alerte?`<div class="sc-alerte">⚠️ ${s.alerte}</div>`:journalAlert?`<div class="sc-alerte">📓 ${daysSinceJournal}j sans journal</div>`:''}</div>
+      ${trk.bar.length?`<div style="display:flex;align-items:center;gap:3px;margin:.3rem 0 .1rem">
+        <span style="font-size:.58rem;font-weight:700;color:var(--gris)">Stage</span>
+        <div style="display:flex;gap:1px">${miniBar}</div>
+        <span style="font-size:.55rem">${pI}📷${cI}📓</span>
+        ${trk.streak?`<span style="font-size:.55rem;color:var(--orange);font-weight:700">🔥${trk.streak}</span>`:''}
+      </div>`:''}
+      <div class="sc-bot" style="flex-wrap:wrap;gap:.2rem">
+        <span>🕐 ${s.derniere_eval?dateFR(s.derniere_eval):'—'}</span>
+        <span style="font-size:.62rem;color:var(--bleu)">📋${nbActs}</span>
+        ${alerte?`<span class="sc-alerte">⚠️ ${s.alerte}</span>`:journalAlert?`<span class="sc-alerte">📓 ${daysSinceJournal}j</span>`:''}
+      </div>
+      <div style="display:flex;gap:3px;margin-top:.3rem;flex-wrap:wrap;justify-content:center" onclick="event.stopPropagation()">
+        <button class="btn btn-ghost btn-xs" onclick="previewPageEleve('${s.code}')" title="Voir page élève" style="font-size:.6rem;padding:2px 5px">👁️ Élève</button>
+        <button class="btn btn-ghost btn-xs" onclick="previewPageTuteur('${s.code}')" title="Voir page tuteur" style="font-size:.6rem;padding:2px 5px">👁️ Tuteur</button>
+        <button class="btn btn-ghost btn-xs" onclick="viewStagePhotos('${s.code}')" title="Photos stage" style="font-size:.6rem;padding:2px 5px">📷</button>
+        <button class="btn btn-ghost btn-xs" onclick="if(window.activModule)activModule.showStudentHistory('${s.code}')" title="Historique" style="font-size:.6rem;padding:2px 5px">📋</button>
+        <button class="btn btn-ghost btn-xs" onclick="showQR('${s.code}')" title="QR" style="font-size:.6rem;padding:2px 5px">📱</button>
+      </div>
     </div>`;
   });
   g.innerHTML=cards.join('');
@@ -1130,22 +1334,31 @@ function renderDash(){
   const nb=document.querySelector('.nav-btn[data-tab="dashboard"]');
   if(nb){nb.querySelector('.nav-badge')?.remove();if(al>0)nb.insertAdjacentHTML('beforeend',`<span class="nav-badge">${al}</span>`);}
 }
-function goEval(code){selectStudent(code,'ep2');switchTab('ep2');}
+function goEval(code){selectStudent(code,'ep2');switchTab('activites');switchActPanel('ep2');}
 
 /* ═══ [F] EP2 / EP3 ═══ */
 function renderEP2(){
-  const c=document.getElementById('ep2List');
-  if(!cur){c.innerHTML='<div class="alert al-warn">Sélectionnez un élève</div>';return;}
-  const comps=COMP_EP2.filter(x=>x.lieux.includes(curCtx));
-  c.innerHTML=comps.length?comps.map(x=>compBlock(x,'EP2',curCtx)).join(''):'<div class="alert al-info">Aucune compétence dans ce contexte</div>';
+  const html=(!cur)?'<div class="alert al-warn">Sélectionnez un élève</div>':(()=>{
+    const comps=COMP_EP2.filter(x=>x.lieux.includes(curCtx));
+    return comps.length?comps.map(x=>compBlock(x,'EP2',curCtx)).join(''):'<div class="alert al-info">Aucune compétence dans ce contexte</div>';
+  })();
+  const c=document.getElementById('ep2List');if(c)c.innerHTML=html;
+  const cb=document.getElementById('ep2Listb');if(cb)cb.innerHTML=html;
 }
 function renderEP3(){
   const c=document.getElementById('ep3List');
-  if(!cur){c.innerHTML='<div class="alert al-warn">Sélectionnez un élève</div>';return;}
+  if(!cur){
+    if(c)c.innerHTML='<div class="alert al-warn">Sélectionnez un élève</div>';
+    const cb=document.getElementById('ep3Listb');if(cb)cb.innerHTML='<div class="alert al-warn">Sélectionnez un élève</div>';
+    return;
+  }
   const sit=SIT_INFO[curSit];
-  document.getElementById('ep3Info').textContent=`Sit. ${curSit} — ${sit.nom} (${sit.duree}) · Compétences : ${sit.comp.join(', ')}`;
+  const infoText=`Sit. ${curSit} — ${sit.nom} (${sit.duree}) · Compétences : ${sit.comp.join(', ')}`;
+  document.getElementById('ep3Info').textContent=infoText;
   const comps=COMP_EP3.filter(x=>x.sits.includes(curSit));
-  c.innerHTML=comps.map(x=>compBlock(x,'EP3',curSit)).join('');
+  const html=comps.map(x=>compBlock(x,'EP3',curSit)).join('');
+  if(c)c.innerHTML=html;
+  const cb=document.getElementById('ep3Listb');if(cb)cb.innerHTML=html;
   // Synthèse
   const sg=document.getElementById('ep3SynthGrid');
   document.getElementById('ep3Synth').style.display='';
