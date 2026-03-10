@@ -136,6 +136,7 @@
       if (action === 'allElevesPhase')  { _allElevesPhase(btn.dataset.ph); return; }
       if (action === 'submitCreate')    { _submitCreate(); return; }
       if (action === 'switchStuPhase')  { _switchStuPhase(btn); return; }
+      if (action === 'switchCompPhase') { _switchCompPhase(btn); return; }
       if (action === 'toggleSectionComps')  { _toggleSection('actCompsZone','arrowComps'); return; }
       if (action === 'toggleSectionEleves') { _toggleSection('actElevesZone','arrowEleves'); return; }
 
@@ -289,26 +290,35 @@
     _renderEvalFor(act, code);
   }
 
+  /** Phase d'un élève pour une compétence donnée dans un TP */
+  function _phaseEleveComp(act, studentCode, compCode) {
+    if (act.phasesElevesComps && act.phasesElevesComps[studentCode] && act.phasesElevesComps[studentCode][compCode]) {
+      return act.phasesElevesComps[studentCode][compCode];
+    }
+    return _phaseEleve(act, studentCode);
+  }
+
   function _renderEvalFor(act, studentCode) {
     var zone = document.getElementById('actEvalZone');
     if (!zone) return;
 
     var c = COULEURS[act.epreuve] || {bg:'#555',light:'#f5f5f5'};
 
-    var ePh = _phaseEleve(act, studentCode);
-    var isF = (ePh === 'formatif');
+    // Compter les comp certif pour cet élève
+    var nF = 0, nC = 0;
+    (act.competences || []).forEach(function(cc) {
+      if (_phaseEleveComp(act, studentCode, cc) === 'certificatif') nC++;
+      else nF++;
+    });
 
-    // Barre phase pour cet élève
+    // En-tête élève
     var html = '<div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.6rem;padding:.4rem .6rem;'
-      + 'background:' + (isF ? '#e8f0f8' : '#fff3e0') + ';border-radius:8px;border:1px solid ' + (isF ? '#2196F366' : '#FF980066') + '">';
-    html += '<span style="font-size:.75rem;font-weight:600;flex:1">' + _studentName(studentCode) + ' — '
-      + (isF ? '📘 Formatif' : '📙 Certificatif') + '</span>';
-    html += '<button type="button" data-act="switchStuPhase" data-code="' + studentCode + '" data-id="' + act.id + '" '
-      + 'style="padding:.2rem .5rem;border:2px solid ' + (isF ? 'var(--orange)' : 'var(--bleu2)') + ';'
-      + 'background:#fff;color:' + (isF ? 'var(--orange)' : 'var(--bleu2)') + ';border-radius:6px;'
-      + 'font-size:.65rem;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,.1)">'
-      + (isF ? '→ Certif.' : '→ Format.') + '</button>';
+      + 'background:#f5f5f5;border-radius:8px;border:1px solid #ddd">';
+    html += '<span style="font-size:.8rem;font-weight:700;flex:1">' + _studentName(studentCode) + '</span>';
+    html += '<span style="font-size:.65rem;color:var(--bleu2)">📘 ' + nF + '</span>';
+    html += '<span style="font-size:.65rem;color:var(--orange)">📙 ' + nC + '</span>';
     html += '</div>';
+    html += '<div style="font-size:.68rem;color:#888;margin-bottom:.5rem">Cliquez 📘/📙 sur chaque compétence pour basculer formatif/certificatif</div>';
 
     (act.competences || []).forEach(function(compCode) {
       var compEp = _epForComp(act, compCode);
@@ -329,21 +339,27 @@
         ? ((window.customCriteria[studentCode][compEp] || {})[compCode] || []) : [];
       var allCrits = crits.concat(customCrits);
 
-      // Phase par compétence si dispo
-      var compPhase = (act.phasesComps && act.phasesComps[compCode]) || act.phase || 'formatif';
-      var compPhaseIcon = compPhase === 'certificatif' ? '📙' : '📘';
+      // Phase par élève par compétence
+      var compPhase = _phaseEleveComp(act, studentCode, compCode);
+      var isCompF = (compPhase === 'formatif');
 
       var startOpen = (act.competences || []).length <= 2;
 
-      // Bloc compétence
-      html += '<div style="margin-bottom:.5rem;border:1px solid ' + cc.bg + '33;border-radius:10px;overflow:hidden">';
+      // Bloc compétence — bordure selon phase
+      html += '<div style="margin-bottom:.5rem;border:1px solid ' + (isCompF ? cc.bg + '33' : 'var(--orange)') + ';border-radius:10px;overflow:hidden;'
+        + (isCompF ? '' : 'box-shadow:0 0 0 1px var(--orange)') + '">';
 
       // En-tête
       html += '<div data-act="toggleBlock" style="display:flex;align-items:center;gap:.4rem;padding:.5rem .7rem;'
-        + 'background:' + cc.light + ';cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,.1)">';
+        + 'background:' + (isCompF ? cc.light : '#fff3e0') + ';cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,.1)">';
       html += '<span style="font-weight:800;color:' + cc.bg + ';font-size:.82rem">' + compCode + '</span>';
       html += '<span style="flex:1;font-size:.78rem;color:#333">' + comp.nom + '</span>';
-      html += '<span style="font-size:.6rem;padding:.1rem .3rem;border-radius:4px;background:' + cc.bg + '22;color:' + cc.bg + '">' + compPhaseIcon + ' ' + compEpOrig + '</span>';
+      // Bouton phase cliquable
+      html += '<button type="button" data-act="switchCompPhase" data-code="' + studentCode + '" data-comp="' + compCode + '" data-id="' + act.id + '" '
+        + 'style="padding:.15rem .4rem;border:1.5px solid ' + (isCompF ? 'var(--bleu2)' : 'var(--orange)') + ';'
+        + 'background:' + (isCompF ? '#e8f0f8' : '#fff3e0') + ';color:' + (isCompF ? 'var(--bleu2)' : 'var(--orange)') + ';'
+        + 'border-radius:6px;font-size:.6rem;font-weight:700;cursor:pointer;white-space:nowrap;z-index:1">'
+        + (isCompF ? '📘 Format.' : '📙 EP') + '</button>';
       html += '<span class="badge ' + lvcls + '" style="font-size:.7rem;font-weight:700;padding:.15rem .4rem;border-radius:6px">' + lvDisplay + '</span>';
       html += '<span class="actArrow" style="font-size:.7rem">' + (startOpen ? '▲' : '▼') + '</span>';
       html += '</div>';
@@ -501,6 +517,24 @@
     _renderEvalFor(act, code);
   }
 
+  /** Bascule la phase d'une compétence pour un élève */
+  function _switchCompPhase(btn) {
+    var code = btn.dataset.code;
+    var compCode = btn.dataset.comp;
+    var id = btn.dataset.id;
+    var act = (window.appCfg.activites || []).find(function(a){ return a.id === id; });
+    if (!act) return;
+    if (!act.phasesElevesComps) act.phasesElevesComps = {};
+    if (!act.phasesElevesComps[code]) {
+      act.phasesElevesComps[code] = {};
+      (act.competences || []).forEach(function(c) { act.phasesElevesComps[code][c] = 'formatif'; });
+    }
+    var cur = act.phasesElevesComps[code][compCode] || 'formatif';
+    act.phasesElevesComps[code][compCode] = (cur === 'formatif') ? 'certificatif' : 'formatif';
+    if (typeof window.saveLocal === 'function') window.saveLocal();
+    _renderEvalFor(act, code);
+  }
+
   async function _evalCrit(studentCode, compCode, critEnc, niv, epreuve) {
     var ep = _epForPush(epreuve);
     var ctx = _contextForEpreuve(epreuve);
@@ -516,8 +550,10 @@
 
     window.cur = studentCode;
     var act = (window.appCfg.activites || []).find(function(a){ return a.id === _evalState.actId; });
-    if (act) window.curPhase = _phaseEleve(act, studentCode);
-    if (ep === 'EP2') window.curCtx = ctx; else window.curSit = ctx;
+    if (act) window.curPhase = _phaseEleveComp(act, studentCode, compCode);
+    if (ep === 'EP1') { /* pas de contexte spécial */ }
+    else if (ep === 'EP2') window.curCtx = ctx;
+    else window.curSit = ctx;
 
     await window.pushVal({
       epreuve: ep, competence: compCode, critere: crit, niveau: newNiv, contexte: ctx
@@ -545,8 +581,10 @@
 
     window.cur = studentCode;
     var act = (window.appCfg.activites || []).find(function(a){ return a.id === _evalState.actId; });
-    if (act) window.curPhase = _phaseEleve(act, studentCode);
-    if (ep === 'EP2') window.curCtx = ctx; else window.curSit = ctx;
+    if (act) window.curPhase = _phaseEleveComp(act, studentCode, compCode);
+    if (ep === 'EP1') { /* pas de contexte spécial */ }
+    else if (ep === 'EP2') window.curCtx = ctx;
+    else window.curSit = ctx;
 
     await window.pushVal({
       epreuve: ep, competence: compCode, critere: '', niveau: newNiv, contexte: ctx

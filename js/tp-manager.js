@@ -1,6 +1,7 @@
 /**
  * tp-manager.js — Création et bibliothèque de TP
- * Mixage libre EP1 + EP2 + EP3 — phase formatif/certificatif par compétence
+ * Mixage libre EP1 + EP2 + EP3
+ * La phase (formatif/certificatif) se gère par élève par compétence dans l'évaluation
  * Expose : window.tpManager
  */
 ;(function () {
@@ -10,15 +11,14 @@
   if (!Array.isArray(window.appCfg.activites)) window.appCfg.activites = [];
 
   var COULEURS = {
-    'EP1':   {bg:'#e67e22', light:'#fef5e7', cls:'b-ep1'},
-    'EP2':   {bg:'#2d5a8c', light:'#e8f0f8', cls:'b-ep2'},
-    'EP3-A': {bg:'#9b59b6', light:'#f3e5f5', cls:'b-ep3'},
-    'EP3-B': {bg:'#3498db', light:'#d1ecf1', cls:'b-ep3'},
-    'EP3-C': {bg:'#1abc9c', light:'#d4f4e2', cls:'b-ep3'}
+    'EP1':   {bg:'#e67e22', light:'#fef5e7'},
+    'EP2':   {bg:'#2d5a8c', light:'#e8f0f8'},
+    'EP3-A': {bg:'#9b59b6', light:'#f3e5f5'},
+    'EP3-B': {bg:'#3498db', light:'#d1ecf1'},
+    'EP3-C': {bg:'#1abc9c', light:'#d4f4e2'}
   };
 
   // État de sélection
-  // comps = { 'C3.4': { ep:'EP2', phase:'formatif' }, ... }
   var _sel = { comps: {}, eleves: [], epFilters: ['EP1','EP2','EP3'] };
 
   // ── Helpers ──
@@ -33,12 +33,6 @@
     var ep3c = (window.COMP_EP3 || []).filter(function(c){ return c.sits && c.sits.indexOf('C')!==-1; })
       .map(function(c) { return {code:c.code, nom:c.nom, full:c.full, obl:c.obl, ep:'EP3-C'}; });
     return { 'EP1': ep1, 'EP2': ep2, 'EP3-A': ep3a, 'EP3-B': ep3b, 'EP3-C': ep3c };
-  }
-
-  function _studentName(code) {
-    var s = (window.students || []).find(function(e){ return e.code === code; });
-    if (!s) return code;
-    return (s.nom || '') + ' ' + (s.prenom || '');
   }
 
   function _today() { return new Date().toISOString().split('T')[0]; }
@@ -80,7 +74,7 @@
   }
 
   // ══════════════════════════════════════════════════════════════
-  // FILTRES ÉPREUVE (toggle pour afficher/masquer les sections)
+  // FILTRES ÉPREUVE
   // ══════════════════════════════════════════════════════════════
 
   function _renderEprFilters() {
@@ -125,7 +119,6 @@
     zone.innerHTML = sts.map(function(s) {
       var sel = _sel.eleves.indexOf(s.code) !== -1;
       return '<button type="button" onclick="tpManager.toggleEleve(\'' + s.code + '\')" '
-        + 'id="tpE_' + s.code.replace(/[^a-zA-Z0-9]/g,'_') + '" '
         + 'class="btn ' + (sel ? 'btn-primary' : 'btn-ghost') + ' btn-sm" '
         + 'style="font-size:.78rem">'
         + (s.nom || '') + ' ' + (s.prenom ? s.prenom.charAt(0) + '.' : '')
@@ -143,11 +136,8 @@
 
   function toggleAllEleves() {
     var sts = window.students || [];
-    if (_sel.eleves.length === sts.length) {
-      _sel.eleves = [];
-    } else {
-      _sel.eleves = sts.map(function(s) { return s.code; });
-    }
+    if (_sel.eleves.length === sts.length) _sel.eleves = [];
+    else _sel.eleves = sts.map(function(s) { return s.code; });
     _renderEleves();
   }
 
@@ -157,7 +147,8 @@
   }
 
   // ══════════════════════════════════════════════════════════════
-  // COMPÉTENCES — mixage libre EP1/EP2/EP3, phase par compétence
+  // COMPÉTENCES — sélection simple, pas de phase ici
+  // La phase se gère par élève dans l'évaluation
   // ══════════════════════════════════════════════════════════════
 
   function _renderComps() {
@@ -167,7 +158,6 @@
     var html = '';
     var total = 0;
 
-    // Ordre d'affichage
     var sections = [
       {key:'EP1', label:'EP1 — Étude et préparation', show: _sel.epFilters.indexOf('EP1') !== -1},
       {key:'EP2', label:'EP2 — Réalisation', show: _sel.epFilters.indexOf('EP2') !== -1},
@@ -189,37 +179,19 @@
 
       comps.forEach(function(comp) {
         var sel = !!_sel.comps[comp.code];
-        var phase = sel ? (_sel.comps[comp.code].phase || 'formatif') : 'formatif';
-        var isF = (phase === 'formatif');
         if (sel) total++;
 
-        html += '<div class="comp-block" data-comp="' + comp.code + '" '
-          + 'style="border-left:4px solid ' + (sel ? c.bg : '#ddd') + ';'
+        html += '<div style="border-left:4px solid ' + (sel ? c.bg : '#ddd') + ';'
           + (sel ? 'background:' + c.light : '') + ';margin-bottom:.3rem;padding:.4rem .6rem;border-radius:0 8px 8px 0">';
 
-        // Ligne principale : checkbox + code + nom + bouton phase
-        html += '<div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap">';
-        html += '<input type="checkbox" ' + (sel ? 'checked' : '') + ' '
-          + 'onclick="tpManager.toggleComp(\'' + comp.code + '\',\'' + sec.key + '\')" '
-          + 'style="margin:0;cursor:pointer">';
-        html += '<span style="font-weight:800;font-size:.8rem;color:' + (sel ? c.bg : '#888') + ';cursor:pointer" '
-          + 'onclick="tpManager.toggleComp(\'' + comp.code + '\',\'' + sec.key + '\')">'
-          + comp.code + '</span>';
-        html += '<span style="flex:1;font-size:.76rem;color:#333;cursor:pointer" '
-          + 'onclick="tpManager.toggleComp(\'' + comp.code + '\',\'' + sec.key + '\')">'
+        html += '<div style="display:flex;align-items:center;gap:.4rem;cursor:pointer" '
+          + 'onclick="tpManager.toggleComp(\'' + comp.code + '\',\'' + sec.key + '\')">';
+        html += '<input type="checkbox" ' + (sel ? 'checked' : '') + ' style="margin:0;pointer-events:none">';
+        html += '<span style="font-weight:800;font-size:.8rem;color:' + (sel ? c.bg : '#888') + '">' + comp.code + '</span>';
+        html += '<span style="flex:1;font-size:.76rem;color:#333">'
           + comp.nom + (comp.obl ? ' <span style="color:#e53935">✱</span>' : '') + '</span>';
-
-        // Bouton phase formatif/certificatif
-        if (sel) {
-          html += '<button type="button" onclick="tpManager.togglePhase(\'' + comp.code + '\')" '
-            + 'style="padding:.15rem .4rem;border:1.5px solid ' + (isF ? 'var(--bleu2)' : 'var(--orange)') + ';'
-            + 'background:' + (isF ? '#e8f0f8' : '#fff3e0') + ';color:' + (isF ? 'var(--bleu2)' : 'var(--orange)') + ';'
-            + 'border-radius:6px;font-size:.62rem;font-weight:700;cursor:pointer;white-space:nowrap">'
-            + (isF ? '📘 Format.' : '📙 Certif.') + '</button>';
-        }
         html += '</div>';
 
-        // Description
         html += '<div style="padding-left:1.4rem;font-size:.68rem;color:#666;margin-top:.15rem">' + comp.full + '</div>';
         html += '</div>';
       });
@@ -236,17 +208,8 @@
   }
 
   function toggleComp(code, ep) {
-    if (_sel.comps[code]) {
-      delete _sel.comps[code];
-    } else {
-      _sel.comps[code] = { ep: ep, phase: 'formatif' };
-    }
-    _renderComps();
-  }
-
-  function togglePhase(code) {
-    if (!_sel.comps[code]) return;
-    _sel.comps[code].phase = (_sel.comps[code].phase === 'formatif') ? 'certificatif' : 'formatif';
+    if (_sel.comps[code]) delete _sel.comps[code];
+    else _sel.comps[code] = { ep: ep };
     _renderComps();
   }
 
@@ -267,13 +230,12 @@
       });
     });
 
-    // Si toutes les visibles sont cochées → tout décocher, sinon tout cocher
     var allChecked = visibleCodes.every(function(v) { return !!_sel.comps[v.code]; });
     if (allChecked) {
       visibleCodes.forEach(function(v) { delete _sel.comps[v.code]; });
     } else {
       visibleCodes.forEach(function(v) {
-        if (!_sel.comps[v.code]) _sel.comps[v.code] = { ep: v.ep, phase: 'formatif' };
+        if (!_sel.comps[v.code]) _sel.comps[v.code] = { ep: v.ep };
       });
     }
     _renderComps();
@@ -281,18 +243,7 @@
 
   function _updateCompCount(total) {
     var cnt = document.getElementById('tpCompCount');
-    if (cnt) {
-      var nF = 0, nC = 0;
-      Object.keys(_sel.comps).forEach(function(k) {
-        if (_sel.comps[k].phase === 'certificatif') nC++;
-        else nF++;
-      });
-      var txt = '(' + (nF + nC) + ' comp.';
-      if (nF) txt += ' · ' + nF + ' 📘';
-      if (nC) txt += ' · ' + nC + ' 📙';
-      txt += ')';
-      cnt.textContent = txt;
-    }
+    if (cnt) cnt.textContent = '(' + total + ' comp.)';
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -310,25 +261,23 @@
     if (!window.appCfg) window.appCfg = {};
     if (!Array.isArray(window.appCfg.activites)) window.appCfg.activites = [];
 
-    // Déterminer les épreuves impliquées
+    // Épreuves impliquées
     var epreuves = {};
     compKeys.forEach(function(k) { epreuves[_sel.comps[k].ep] = true; });
     var eprList = Object.keys(epreuves);
     var epreuve = eprList.length === 1 ? eprList[0] : 'MIXTE';
 
-    // Phase globale = mixte si les comp ont des phases différentes
-    var phases = {};
-    compKeys.forEach(function(k) { phases[_sel.comps[k].phase] = true; });
-    var phase = (phases['formatif'] && phases['certificatif']) ? 'mixte'
-      : phases['certificatif'] ? 'certificatif' : 'formatif';
-
-    // Construire phasesComps : { 'C3.4': 'certificatif', 'C4.1': 'formatif', ... }
-    var phasesComps = {};
-    compKeys.forEach(function(k) { phasesComps[k] = _sel.comps[k].phase; });
-
-    // Construire compsEpreuves : { 'C3.4': 'EP2', 'C4.1': 'EP3-A', ... }
+    // compsEpreuves : quelle EP pour chaque compétence
     var compsEpreuves = {};
     compKeys.forEach(function(k) { compsEpreuves[k] = _sel.comps[k].ep; });
+
+    // phasesElevesComps : { 'ELV-001': { 'C3.4': 'formatif', ... }, ... }
+    // Tout en formatif par défaut, basculable dans l'évaluation
+    var phasesElevesComps = {};
+    _sel.eleves.forEach(function(code) {
+      phasesElevesComps[code] = {};
+      compKeys.forEach(function(k) { phasesElevesComps[code][k] = 'formatif'; });
+    });
 
     var act = {
       id: _nextId(),
@@ -337,14 +286,11 @@
       epreuve: epreuve,
       epreuves: eprList,
       competences: compKeys,
-      phasesComps: phasesComps,
       compsEpreuves: compsEpreuves,
+      phasesElevesComps: phasesElevesComps,
       evaluateur: (window.cfg && window.cfg.nomProf) || '',
-      phase: phase,
+      phase: 'formatif',
       eleves: _sel.eleves.slice(),
-      elevesDetail: _sel.eleves.map(function(code) {
-        return { code: code, phase: 'formatif' };
-      }),
       phasesEleves: {},
       photos: [],
       obs: ''
@@ -370,7 +316,6 @@
     backToList: backToList,
     toggleEpFilter: toggleEpFilter,
     toggleComp: toggleComp,
-    togglePhase: togglePhase,
     toggleAllComps: toggleAllComps,
     toggleEleve: toggleEleve,
     toggleAllEleves: toggleAllEleves,
