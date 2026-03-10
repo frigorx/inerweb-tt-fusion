@@ -2100,12 +2100,27 @@ const CRIT_RAPPORT_PRO=[
   {key:"illustrations",lbl:"Illustrations",          sub:"Photos, schémas, croquis commentés"},
   {key:"reflexion",   lbl:"Lien avec la formation",  sub:"Rapport entre les activités et le référentiel"},
 ];
-const CRIT_RAPPORT_FR=[
-  {key:"presentation", lbl:"Présentation & mise en page", sub:"Soin, lisibilité, structure"},
-  {key:"orthographe",  lbl:"Expression écrite",           sub:"Orthographe, grammaire, syntaxe"},
-  {key:"bilan",        lbl:"Bilan personnel",             sub:"Réflexivité, ce qu'il a appris, ressenti"},
-  {key:"powerpoint",   lbl:"Support PowerPoint",          sub:"Si oral prévu : qualité du support"},
-];
+const CRIT_RAPPORT_FR={
+  total:20,
+  categories:[
+    {id:"COM",nom:"COMMUNICATION",pts_max:7,criteres:[
+      {id:"COM1",lbl:"Adopter un comportement physique convenant à la nature de l'épreuve",sub:"Se tenir droit, regarder son auditoire et utiliser ses notes",pts:2},
+      {id:"COM2",lbl:"Construire un exposé cohérent pendant cinq minutes environ",sub:"Présentation, annonce du plan de l'exposé oral",pts:2},
+      {id:"COM3",lbl:"S'exprimer avec clarté",sub:"Le ton de la voix est convaincu, le propos audible et clair, le débit approprié",pts:2},
+      {id:"COM4",lbl:"Dialoguer, réagir aux remarques de son interlocuteur, intéresser son auditoire",sub:null,pts:1}
+    ]},
+    {id:"ARG",nom:"ARGUMENTATION",pts_max:10,criteres:[
+      {id:"ARG1",lbl:"Présenter un avis argumenté",sub:"Les exemples illustratifs sont pertinents",pts:2},
+      {id:"ARG2",lbl:"Chercher à convaincre",sub:"Les arguments sont convaincants",pts:2},
+      {id:"ARG3",lbl:"Réagir avec vivacité et pertinence",sub:"Le raisonnement se tient",pts:2},
+      {id:"ARG4",lbl:"Effectuer un rapprochement entre son stage réalisé et/ou son projet personnel et le parcours de formation approprié",sub:null,pts:2},
+      {id:"ARG5",lbl:"Exposer son projet d'orientation et/ou sa réflexion sur la question",sub:null,pts:2}
+    ]},
+    {id:"LING",nom:"OUTILS LINGUISTIQUES",pts_max:3,criteres:[
+      {id:"LING1",lbl:"La langue utilisée est précise et correcte",sub:"Vocabulaire, grammaire, style, niveau de langue adapté à l'entreprise",pts:3}
+    ]}
+  ]
+};
 const NIVEAUX_R=["Non rendu / Absent","Insuffisant","Correct","Bien","Très bien"];
 const COULEURS_R=["#fde8e6","#fff3ee","#fef9e7","#d4f4e2","#e8f0f8"];
 const TCOULEURS_R=["#c0390f","#c05a0f","#a06e00","#1a7d3e","#1b3a63"];
@@ -2122,10 +2137,11 @@ function renderRapport(){
   const s=students.find(x=>x.code===cur)||{};
   const pfmp=document.getElementById('selRapportPfmp')?.value||'pfmp1';
   if(!rapportData[cur])rapportData[cur]={};
-  if(!rapportData[cur][pfmp])rapportData[cur][pfmp]={pro:{},fr:{},obs_pro:'',obs_fr:''};
+  if(!rapportData[cur][pfmp])rapportData[cur][pfmp]={pro:{},fr:{},obs_pro:'',obs_fr:'',jury:''};
   const d=rapportData[cur][pfmp];
 
-  const makeGrid=(criteres,secteur)=>criteres.map(cr=>{
+  /* Grille pro (inchangée — niveaux qualitatifs) */
+  const makeGridPro=(criteres,secteur)=>criteres.map(cr=>{
     const niv=d[secteur][cr.key]??-1;
     const btns=NIVEAUX_R.map((n,i)=>`
       <div onclick="setRapportNiv('${cr.key}','${secteur}',${i})"
@@ -2136,28 +2152,85 @@ function renderRapport(){
     return`<div style="background:var(--gris2);border-radius:var(--r2);padding:.65rem .75rem;margin-bottom:.5rem">
       <div style="font-size:.82rem;font-weight:800;color:var(--bleu);margin-bottom:.15rem">${cr.lbl}</div>
       <div style="font-size:.72rem;color:var(--gris);margin-bottom:.5rem">${cr.sub}</div>
-      <div id="rg-${secteur}-${cr.key}" style="display:grid;grid-template-columns:repeat(5,1fr);gap:.25rem">${btns}</div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:.25rem">${btns}</div>
     </div>`;
   }).join('');
+
+  /* Grille français — notation par points /20 */
+  if(!d.fr_pts)d.fr_pts={};
+  let totalFr=0,maxFr=CRIT_RAPPORT_FR.total;
+  const catColors={COM:'#2d5a8c',ARG:'#8e44ad',LING:'#16a085'};
+  const catBg={COM:'#e8f0f8',ARG:'#f3e8f9',LING:'#e8f8f4'};
+
+  const catBlocks=CRIT_RAPPORT_FR.categories.map(cat=>{
+    let catTotal=0;
+    const critsHtml=cat.criteres.map(cr=>{
+      const val=d.fr_pts[cr.id]??'';
+      const numVal=val===''?0:Number(val);
+      catTotal+=numVal;
+      totalFr+=numVal;
+      const ptsOpts=[];
+      for(let i=0;i<=cr.pts;i++)ptsOpts.push(`<option value="${i}" ${val===i||val===''+i?'selected':''}>${i}</option>`);
+      return `<div style="background:#fff;border-radius:var(--r2);padding:.6rem .7rem;margin-bottom:.35rem;border-left:3px solid ${catColors[cat.id]}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem">
+          <div style="flex:1">
+            <div style="font-size:.8rem;font-weight:700;color:${catColors[cat.id]};margin-bottom:.1rem">${cr.id} — ${cr.lbl}</div>
+            ${cr.sub?`<div style="font-size:.7rem;color:var(--gris);line-height:1.3">${cr.sub}</div>`:''}
+          </div>
+          <div style="display:flex;align-items:center;gap:.3rem;flex-shrink:0">
+            <select onchange="setRapportPts('${cr.id}',this.value)" style="padding:.3rem .5rem;border:2px solid ${catColors[cat.id]};border-radius:var(--r2);font-weight:800;font-size:.9rem;color:${catColors[cat.id]};min-width:3rem;text-align:center">
+              <option value="" ${val===''?'selected':''}>—</option>
+              ${ptsOpts.join('')}
+            </select>
+            <span style="font-size:.75rem;font-weight:700;color:var(--gris)">/ ${cr.pts}</span>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div style="background:${catBg[cat.id]};border-radius:var(--r2);padding:.7rem;margin-bottom:.6rem;border:1px solid ${catColors[cat.id]}22">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+        <div style="font-size:.85rem;font-weight:900;color:${catColors[cat.id]};text-transform:uppercase;letter-spacing:.5px">${cat.nom}</div>
+        <div style="font-size:.9rem;font-weight:800;color:${catColors[cat.id]};background:#fff;padding:.2rem .6rem;border-radius:var(--r2)">${catTotal} / ${cat.pts_max}</div>
+      </div>
+      ${critsHtml}
+    </div>`;
+  }).join('');
+
+  const pctFr=maxFr?Math.round(totalFr/maxFr*100):0;
+  const noteColor=pctFr>=80?'#1a7d3e':pctFr>=50?'#a06e00':'#c0390f';
 
   c.innerHTML=`
     <div class="card" style="border-top:3px solid var(--bleu2)">
       <div class="card-title">🔧 Évaluation prof de pro — ${s.nom} ${s.prenom||''}</div>
-      ${makeGrid(CRIT_RAPPORT_PRO,'pro')}
+      ${makeGridPro(CRIT_RAPPORT_PRO,'pro')}
       <div class="fr" style="margin-top:.5rem;margin-bottom:0">
         <label>Observation prof de pro</label>
-        <textarea id="obs_pro" rows="2" style="width:100%;padding:.5rem;border:2px solid var(--gris3);border-radius:var(--r2);font-size:.85rem" 
+        <textarea id="obs_pro" rows="2" style="width:100%;padding:.5rem;border:2px solid var(--gris3);border-radius:var(--r2);font-size:.85rem"
           placeholder="Points forts, axes d'amélioration..."
           oninput="rapportData['${cur}']['${pfmp}'].obs_pro=this.value">${d.obs_pro||''}</textarea>
       </div>
     </div>
     <div class="card" style="border-top:3px solid var(--violet)">
-      <div class="card-title" style="color:var(--violet)">📖 Évaluation prof de français</div>
-      ${makeGrid(CRIT_RAPPORT_FR,'fr')}
-      <div class="fr" style="margin-top:.5rem;margin-bottom:0">
+      <div class="card-title" style="color:var(--violet)">📖 Évaluation orale — Rapport de stage</div>
+      <div style="display:flex;gap:.5rem;align-items:center;margin-bottom:.75rem;flex-wrap:wrap">
+        <div style="font-size:.72rem;color:var(--gris)">Élève :</div>
+        <div style="font-weight:700;font-size:.82rem">${s.nom} ${s.prenom||''}</div>
+        <div style="font-size:.72rem;color:var(--gris);margin-left:.5rem">Classe :</div>
+        <div style="font-weight:700;font-size:.82rem">${s.classe||'—'}</div>
+        <div style="font-size:.72rem;color:var(--gris);margin-left:.5rem">N° jury :</div>
+        <input type="text" value="${d.jury||''}" placeholder="—"
+          oninput="rapportData['${cur}']['${pfmp}'].jury=this.value"
+          style="width:4rem;padding:.25rem .4rem;border:2px solid var(--gris3);border-radius:var(--r2);font-weight:700;font-size:.82rem;text-align:center">
+      </div>
+      ${catBlocks}
+      <div style="background:linear-gradient(135deg,${noteColor}11,${noteColor}22);border:2px solid ${noteColor};border-radius:var(--r2);padding:.75rem;text-align:center;margin-top:.5rem">
+        <div style="font-size:.72rem;font-weight:700;color:${noteColor};text-transform:uppercase;letter-spacing:.5px;margin-bottom:.2rem">Note finale</div>
+        <div style="font-size:1.8rem;font-weight:900;color:${noteColor}">${totalFr} <span style="font-size:1rem;font-weight:700">/ ${maxFr}</span></div>
+      </div>
+      <div class="fr" style="margin-top:.75rem;margin-bottom:0">
         <label>Observation prof de français</label>
         <textarea id="obs_fr" rows="2" style="width:100%;padding:.5rem;border:2px solid var(--gris3);border-radius:var(--r2);font-size:.85rem"
-          placeholder="Expression, orthographe, bilan personnel..."
+          placeholder="Expression, argumentation, qualité de la langue..."
           oninput="rapportData['${cur}']['${pfmp}'].obs_fr=this.value">${d.obs_fr||''}</textarea>
       </div>
     </div>
@@ -2167,9 +2240,17 @@ function renderRapport(){
 function setRapportNiv(key,secteur,niv){
   const pfmp=document.getElementById('selRapportPfmp')?.value||'pfmp1';
   if(!rapportData[cur])rapportData[cur]={};
-  if(!rapportData[cur][pfmp])rapportData[cur][pfmp]={pro:{},fr:{},obs_pro:'',obs_fr:''};
+  if(!rapportData[cur][pfmp])rapportData[cur][pfmp]={pro:{},fr:{},obs_pro:'',obs_fr:'',jury:''};
   const cur_niv=rapportData[cur][pfmp][secteur][key];
   rapportData[cur][pfmp][secteur][key]= cur_niv===niv ? -1 : niv;
+  renderRapport();
+}
+function setRapportPts(critId,val){
+  const pfmp=document.getElementById('selRapportPfmp')?.value||'pfmp1';
+  if(!rapportData[cur])rapportData[cur]={};
+  if(!rapportData[cur][pfmp])rapportData[cur][pfmp]={pro:{},fr:{},obs_pro:'',obs_fr:'',jury:''};
+  if(!rapportData[cur][pfmp].fr_pts)rapportData[cur][pfmp].fr_pts={};
+  rapportData[cur][pfmp].fr_pts[critId]=val===''?'':Number(val);
   renderRapport();
 }
 
