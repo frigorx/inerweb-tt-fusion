@@ -2492,7 +2492,58 @@ function renderBilan(){
       <button class="btn btn-orange btn-sm" onclick="exportStudentPDF()">📄 PDF fiche</button>
       <button class="btn btn-ghost btn-sm" onclick="rapportModule&&rapportModule.generateStudentPDF(cur)">📋 PDF inspection</button>
     </div>
+  </div>
+  <!-- Jury & Évaluateurs CCF -->
+  <div class="card" style="border-top:3px solid var(--orange)">
+    <div class="card-title" style="color:var(--orange)">👥 Jury CCF — Évaluateurs</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem">
+      <div class="fr"><label style="font-size:.75rem;font-weight:800;color:var(--bleu)">👨‍🏫 Évaluateur enseignant</label>
+        <select id="juryEnseignant" onchange="saveJury()" style="padding:.5rem;border:2px solid var(--gris3);border-radius:var(--r2);font-size:.82rem;width:100%">
+          <option value="">— Choisir —</option>
+          <option value="${cfg.nomProf||''}">${cfg.nomProf||'Moi'}</option>
+          ${users.filter(u=>{const r=u.role||'les-deux';return (r==='enseignant'||r==='les-deux')&&u.actif!==false;}).map(u=>`<option value="${u.nom}">${u.nom}</option>`).join('')}
+        </select>
+      </div>
+      <div class="fr"><label style="font-size:.75rem;font-weight:800;color:var(--teal)">🏢 Évaluateur professionnel (tuteur)</label>
+        <select id="juryPro" onchange="saveJury()" style="padding:.5rem;border:2px solid var(--gris3);border-radius:var(--r2);font-size:.82rem;width:100%">
+          <option value="">— Choisir —</option>
+          ${(()=>{const st=students.find(x=>x.code===cur);return st?.tuteur_nom?`<option value="${st.tuteur_nom}">${st.tuteur_nom} (tuteur stage)</option>`:'';})()}
+          ${users.filter(u=>{const r=u.role||'les-deux';return (r==='evaluateur'||r==='les-deux')&&u.actif!==false;}).map(u=>`<option value="${u.nom}">${u.nom}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div style="font-size:.72rem;color:var(--gris);margin-bottom:.5rem">Le prof a le dernier mot sur la note finale.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem">
+      <div style="background:var(--gris2);border-radius:var(--r2);padding:.5rem .6rem;font-size:.78rem">
+        <div style="font-weight:700;color:var(--bleu);margin-bottom:.2rem">📊 Note proposée (calcul)</div>
+        <div style="font-size:1.1rem;font-weight:800;color:var(--bleu)">${e2.note}<span style="font-size:.75rem;color:var(--gris)">/20 EP2</span> + ${e3.note}<span style="font-size:.75rem;color:var(--gris)">/20 EP3</span></div>
+      </div>
+      <div style="background:var(--gris2);border-radius:var(--r2);padding:.5rem .6rem;font-size:.78rem">
+        <div style="font-weight:700;color:var(--orange);margin-bottom:.2rem">🎯 Note finale (jury)</div>
+        <div style="font-size:1.1rem;font-weight:800;color:var(--orange)">${n2.note_finale!=null?n2.note_finale:'—'}<span style="font-size:.75rem;color:var(--gris)">/20 EP2</span> + ${n3.note_finale!=null?n3.note_finale:'—'}<span style="font-size:.75rem;color:var(--gris)">/20 EP3</span></div>
+      </div>
+    </div>
+  </div>
+  <!-- Signatures -->
+  <div class="card" style="border-top:3px solid var(--violet)">
+    <div class="card-title" style="color:var(--violet)">✍️ Signatures</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+      <div>
+        <div id="sigTuteur1" style="margin-bottom:.5rem"><strong style="font-size:.75rem">🏢 Tuteur PFMP 1</strong></div>
+        <div id="sigTuteur2" style="margin-bottom:.5rem"><strong style="font-size:.75rem">🏢 Tuteur PFMP 2</strong></div>
+      </div>
+      <div>
+        <div id="sigProf" style="margin-bottom:.5rem"><strong style="font-size:.75rem">👨‍🏫 Enseignant évaluateur</strong></div>
+        <div id="sigCandidat"><strong style="font-size:.75rem">🎓 Candidat</strong></div>
+      </div>
+    </div>
   </div>`;
+  // Pré-remplir les sélecteurs jury
+  const jury=notes[cur]?.jury||{};
+  const selE=document.getElementById('juryEnseignant');
+  const selP=document.getElementById('juryPro');
+  if(selE&&jury.enseignant){selE.value=jury.enseignant;}
+  if(selP&&jury.professionnel){selP.value=jury.professionnel;}
   // Modules Fusion — rendu contextuel pour l'élève sélectionné
   if(window.expoModule){
     const bar=document.getElementById('expositionBar');if(bar)bar.innerHTML=expoModule.renderBar(cur);
@@ -2505,10 +2556,9 @@ function renderBilan(){
   }
   if(window.sigModule){
     sigModule.init(cur);
-    const sc=document.getElementById('signaturesContainer');
-    if(sc)sc.innerHTML='<div class="card"><div class="card-title">✍️ Signatures</div><div id="sigTuteur1" style="margin-bottom:.5rem"><strong style="font-size:.75rem">Tuteur PFMP 1</strong></div><div id="sigTuteur2" style="margin-bottom:.5rem"><strong style="font-size:.75rem">Tuteur PFMP 2</strong></div><div id="sigCandidat"><strong style="font-size:.75rem">Candidat</strong></div></div>';
     sigModule.render(cur,'tuteur_pfmp1',document.getElementById('sigTuteur1'));
     sigModule.render(cur,'tuteur_pfmp2',document.getElementById('sigTuteur2'));
+    sigModule.render(cur,'prof_evaluateur',document.getElementById('sigProf'));
     sigModule.render(cur,'candidat',document.getElementById('sigCandidat'));
   }
 }
@@ -2520,6 +2570,16 @@ function bilanTable(det){
     return `<tr><td><strong>${d.code}</strong></td><td>${d.nom}${d.obl?' <span style="color:var(--orange);font-size:.6rem">✱</span>':''}</td><td style="${cls};font-weight:800">${lvDisplay}</td><td>${d.pts}/${d.max}</td></tr>`;
   }).join('');
   return `<table class="bilan-table"><thead><tr><th>Code</th><th>Compétence</th><th>Niveau</th><th>Pts</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+function saveJury(){
+  if(!cur)return;
+  if(!notes[cur])notes[cur]={EP2:{},EP3:{}};
+  notes[cur].jury={
+    enseignant:document.getElementById('juryEnseignant')?.value||'',
+    professionnel:document.getElementById('juryPro')?.value||''
+  };
+  saveLocal();
+  toast('Jury enregistré','ok');
 }
 async function valNote(ep){
   const val=parseFloat(document.getElementById('nf'+ep).value);

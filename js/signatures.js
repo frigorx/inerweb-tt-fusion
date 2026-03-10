@@ -15,8 +15,13 @@ window.sigModule = (function () {
       pfmpData[code].signatures = {
         tuteur_pfmp1: null,
         tuteur_pfmp2: null,
+        prof_evaluateur: null,
         candidat: null
       };
+    }
+    // Migration : ajouter prof_evaluateur si manquant
+    if (!pfmpData[code].signatures.hasOwnProperty('prof_evaluateur')) {
+      pfmpData[code].signatures.prof_evaluateur = null;
     }
   }
 
