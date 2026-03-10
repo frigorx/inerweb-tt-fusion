@@ -977,13 +977,39 @@
     return s;
   }
 
+  /** Modale historique activités d'un élève */
+  function showStudentHistory(code) {
+    var acts = getForStudent(code);
+    acts.sort(function(a,b){ return (b.date||'').localeCompare(a.date||''); });
+    var body = '<div style="font-size:.85rem">';
+    if (!acts.length) {
+      body += '<p style="text-align:center;color:var(--gris)">Aucune activité pour cet élève.</p>';
+    } else {
+      acts.forEach(function(act) {
+        var c = COULEURS[act.epreuve] || {bg:'#555',light:'#f5f5f5'};
+        var ph = _phaseEleve(act, code);
+        body += '<div data-act="showDetail" data-id="' + act.id + '" style="background:' + c.light
+          + ';border-left:4px solid ' + c.bg + ';border-radius:8px;padding:.5rem .7rem;margin-bottom:.4rem;cursor:pointer">'
+          + '<div style="display:flex;justify-content:space-between;align-items:center">'
+          + '<strong style="font-size:.82rem">' + (act.titre || 'Sans titre') + '</strong>'
+          + '<span style="background:' + c.bg + ';color:#fff;padding:.1rem .4rem;border-radius:6px;font-size:.68rem;font-weight:700">' + act.epreuve + '</span></div>'
+          + '<div style="font-size:.72rem;color:var(--gris);margin-top:.2rem">📅 ' + _dateFR(act.date)
+          + ' — ' + (ph === 'certificatif' ? '📙 Certif.' : '📘 Format.')
+          + ' — 🎯 ' + (act.competences||[]).length + ' comp.</div></div>';
+      });
+    }
+    body += '</div>';
+    window.showModal('📋 Historique — ' + _studentName(code), body);
+  }
+
   // ── Initialisation + exposition ──
 
   _installDelegation();
 
   window.activModule = {
     init: init, renderList: renderList, showCreateModal: showCreateModal,
-    create: create, 'delete': del, getForStudent: getForStudent, getStats: getStats
+    create: create, 'delete': del, getForStudent: getForStudent, getStats: getStats,
+    showStudentHistory: showStudentHistory
   };
 
 })();
