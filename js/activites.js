@@ -103,6 +103,8 @@
       if (action === 'allElevesPhase')  { _allElevesPhase(btn.dataset.ph); return; }
       if (action === 'submitCreate')    { _submitCreate(); return; }
       if (action === 'switchStuPhase')  { _switchStuPhase(btn); return; }
+      if (action === 'toggleSectionComps')  { _toggleSection('actCompsZone','arrowComps'); return; }
+      if (action === 'toggleSectionEleves') { _toggleSection('actElevesZone','arrowEleves'); return; }
 
       // Liste
       if (action === 'openCard')    { _openEval(btn.dataset.id); return; }
@@ -641,23 +643,25 @@
 
     // Compétences
     body += '<div style="margin-bottom:.75rem">';
-    body += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem">'
-      + '<span style="font-weight:700">🎯 Compétences</span>'
+    body += '<div data-act="toggleSectionComps" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem;cursor:pointer;'
+      + 'padding:.4rem .5rem;background:var(--gris3);border-radius:8px">'
+      + '<span style="font-weight:700">🎯 Compétences <span id="actCompCount" style="font-weight:400;color:var(--gris);font-size:.78rem">(0)</span></span>'
+      + '<div style="display:flex;align-items:center;gap:.3rem">'
       + '<button type="button" data-act="toggleAllComps" '
-      + 'style="background:none;border:1px solid var(--gris3);border-radius:6px;padding:.2rem .5rem;font-size:.7rem;cursor:pointer;'
-      + '-webkit-tap-highlight-color:rgba(0,0,0,.1)">Tout cocher</button>'
-      + '</div>';
+      + 'style="background:none;border:1px solid var(--gris3);border-radius:6px;padding:.2rem .5rem;font-size:.7rem;cursor:pointer">Tout cocher</button>'
+      + '<span id="arrowComps">▼</span></div></div>';
     body += '<div id="actCompsZone" style="display:flex;flex-wrap:wrap;gap:.3rem"></div>';
     body += '</div>';
 
     // Élèves
     body += '<div style="margin-bottom:.5rem">';
-    body += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem">'
+    body += '<div data-act="toggleSectionEleves" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.3rem;cursor:pointer;'
+      + 'padding:.4rem .5rem;background:var(--gris3);border-radius:8px">'
       + '<span style="font-weight:700">👥 Élèves <span id="actElvCount" style="font-weight:400;color:var(--gris);font-size:.78rem">(0/' + sts.length + ')</span></span>'
+      + '<div style="display:flex;align-items:center;gap:.3rem">'
       + '<button type="button" data-act="toggleAllEleves" '
-      + 'style="background:none;border:1px solid var(--gris3);border-radius:6px;padding:.2rem .5rem;font-size:.7rem;cursor:pointer;'
-      + '-webkit-tap-highlight-color:rgba(0,0,0,.1)">Tout cocher</button>'
-      + '</div>';
+      + 'style="background:none;border:1px solid var(--gris3);border-radius:6px;padding:.2rem .5rem;font-size:.7rem;cursor:pointer">Tout cocher</button>'
+      + '<span id="arrowEleves">▼</span></div></div>';
     body += '<div id="actElevesZone" style="display:flex;flex-wrap:wrap;gap:.3rem">';
     if (sts.length) {
       sts.forEach(function (s) {
@@ -751,6 +755,20 @@
     }
   }
 
+  function _toggleSection(zoneId, arrowId) {
+    var zone = document.getElementById(zoneId);
+    var arrow = document.getElementById(arrowId);
+    if (!zone) return;
+    var hidden = zone.style.display === 'none';
+    zone.style.display = hidden ? 'flex' : 'none';
+    if (arrow) arrow.textContent = hidden ? '▲' : '▼';
+  }
+
+  function _updateCompCount() {
+    var cnt = document.getElementById('actCompCount');
+    if (cnt) cnt.textContent = '(' + (window._actState.comps || []).length + ')';
+  }
+
   function _toggleComp(btn) {
     var code = btn.dataset.code;
     var c = COULEURS[window._actState.ep];
@@ -766,6 +784,7 @@
       btn.style.color = c.bg;
       btn.style.borderColor = c.bg + '44';
     }
+    _updateCompCount();
   }
 
   function _toggleEleve(btn) {
@@ -811,6 +830,7 @@
         btn.style.borderColor = c.bg;
       });
     }
+    _updateCompCount();
   }
 
   function _toggleAllEleves() {
