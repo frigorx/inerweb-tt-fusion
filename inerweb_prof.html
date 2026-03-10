@@ -1348,9 +1348,9 @@ function renderStage(){renderSuivi();}
 function getAlertColor(daysSince){
   if(daysSince===null||daysSince===undefined)return{bg:'var(--gris2)',border:'var(--gris)',txt:'var(--gris)',label:'❓ Pas de données',ico:'❓'};
   if(daysSince<=1)return{bg:'var(--vert2)',border:'var(--vert)',txt:'#1a7d3e',label:'✅ À jour',ico:'✅'};
-  if(daysSince<=2)return{bg:'#fffacd',border:'#f0e68c',txt:'#8b7500',label:'⚠️ 2 jours',ico:'⚠️'};
-  if(daysSince<=4)return{bg:'var(--jaune2)',border:'var(--jaune)',txt:'#7a5000',label:`🔶 ${daysSince} jours`,ico:'🔶'};
-  return{bg:'var(--rouge2)',border:'var(--rouge)',txt:'var(--rouge)',label:`🚨 ${daysSince} jours`,ico:'🚨'};
+  if(daysSince<=2)return{bg:'#fffacd',border:'#f0e68c',txt:'#8b7500',label:`⚠️ ${daysSince}j`,ico:'⚠️'};
+  if(daysSince<=3)return{bg:'var(--jaune2)',border:'var(--jaune)',txt:'#7a5000',label:`🔶 ${daysSince}j`,ico:'🔶'};
+  return{bg:'var(--rouge2)',border:'var(--rouge)',txt:'var(--rouge)',label:`🚨 ${daysSince}j`,ico:'🚨'};
 }
 function calcDaysSinceLastEntry(code){
   const pf=pfmpData[code]||{journal:[]};
@@ -1360,8 +1360,50 @@ function calcDaysSinceLastEntry(code){
   if(!last.date&&!last.timestamp)return null;
   const lastDate=new Date(last.date||last.timestamp);
   const now=new Date();
-  // Calcul jours ouvrés (simplifié: tous les jours pour l'instant)
   return Math.floor((now-lastDate)/(1000*60*60*24));
+}
+/** Analyse détaillée du suivi stage : photos + commentaires quotidiens */
+function stageTracking(code){
+  const pf=pfmpData[code]||{journal:[]};
+  const j=pf.journal||[];
+  if(!j.length)return{days:null,lastPhoto:null,lastComment:null,photosTotal:0,commentsTotal:0,streak:0,bar:[]};
+  // Grouper par jour
+  const byDay={};
+  j.forEach(e=>{
+    const day=(e.date||e.timestamp||'').slice(0,10);
+    if(!day)return;
+    if(!byDay[day])byDay[day]={photos:0,comments:0};
+    byDay[day].photos+=(e.photos?.length||0);
+    if(e.text||e.description||e.activite)byDay[day].comments++;
+  });
+  const days=Object.keys(byDay).sort();
+  const photosTotal=j.reduce((a,e)=>a+(e.photos?.length||0),0);
+  const commentsTotal=j.filter(e=>e.text||e.description||e.activite).length;
+  // Dernière photo et dernier commentaire
+  const withPhotos=[...j].filter(e=>e.photos?.length).sort((a,b)=>new Date(b.date||b.timestamp)-new Date(a.date||a.timestamp));
+  const withComments=[...j].filter(e=>e.text||e.description||e.activite).sort((a,b)=>new Date(b.date||b.timestamp)-new Date(a.date||a.timestamp));
+  const lastPhoto=withPhotos.length?Math.floor((new Date()-new Date(withPhotos[0].date||withPhotos[0].timestamp))/(1000*60*60*24)):null;
+  const lastComment=withComments.length?Math.floor((new Date()-new Date(withComments[0].date||withComments[0].timestamp))/(1000*60*60*24)):null;
+  // Barre des 7 derniers jours
+  const bar=[];
+  for(let i=6;i>=0;i--){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const ds=d.toISOString().slice(0,10);
+    const info=byDay[ds]||{photos:0,comments:0};
+    const ok=info.photos>0&&info.comments>0;
+    const partial=info.photos>0||info.comments>0;
+    bar.push({date:ds,day:d.toLocaleDateString('fr-FR',{weekday:'short'}).slice(0,2),photos:info.photos,comments:info.comments,ok,partial});
+  }
+  // Streak : jours consécutifs avec photo+commentaire (en remontant)
+  let streak=0;
+  for(let i=0;i<30;i++){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const ds=d.toISOString().slice(0,10);
+    const info=byDay[ds];
+    if(info&&info.photos>0&&info.comments>0)streak++;
+    else break;
+  }
+  return{days:calcDaysSinceLastEntry(code),lastPhoto,lastComment,photosTotal,commentsTotal,streak,bar};
 }
 function renderSuivi(){
   const c=document.getElementById('stageList');
@@ -1391,10 +1433,23 @@ function renderSuivi(){
   
   c.innerHTML=statsHtml+sorted.map(s=>{
     const pf=pfmpData[s.code]||{journal:[]};
-    const days=calcDaysSinceLastEntry(s.code);
-    const alert=getAlertColor(days);
-    const photoCount=pf.journal.reduce((acc,j)=>acc+(j.photos?.length||0),0);
-    
+    const trk=stageTracking(s.code);
+    const alert=getAlertColor(trk.days);
+
+    // Barre 7 jours
+    const barHtml=trk.bar.map(b=>{
+      const bg=b.ok?'var(--vert)':b.partial?'var(--jaune)':'var(--gris3)';
+      const title=b.date+' — '+b.photos+' 📷, '+b.comments+' 📓';
+      return `<div title="${title}" style="display:flex;flex-direction:column;align-items:center;gap:1px">
+        <div style="width:18px;height:18px;border-radius:3px;background:${bg}"></div>
+        <span style="font-size:.5rem;color:#888">${b.day}</span>
+      </div>`;
+    }).join('');
+
+    // Alertes photos/commentaires
+    const photoAlert=trk.lastPhoto===null?'❌':trk.lastPhoto>=4?'🔴':trk.lastPhoto>=2?'🟡':'🟢';
+    const commentAlert=trk.lastComment===null?'❌':trk.lastComment>=4?'🔴':trk.lastComment>=2?'🟡':'🟢';
+
     return `<div class="se-card" style="border-left:4px solid ${alert.border};background:${alert.bg}">
       <div style="display:flex;justify-content:space-between;align-items:flex-start">
         <div>
@@ -1403,17 +1458,52 @@ function renderSuivi(){
           <div class="se-co">🏢 ${s.entreprise_nom||'—'} · 👤 ${s.tuteur_nom||'—'}</div>
         </div>
         <div style="text-align:right">
-          <span class="j-count" style="background:#fff">📓 ${pf.journal.length}</span>
-          ${photoCount?`<span class="j-count" style="background:#fff;margin-left:.3rem">📷 ${photoCount}</span>`:''}
+          <span class="j-count" style="background:#fff">📓 ${trk.commentsTotal}</span>
+          <span class="j-count" style="background:#fff;margin-left:.3rem">📷 ${trk.photosTotal}</span>
+          ${trk.streak?`<span class="j-count" style="background:var(--vert2);margin-left:.3rem">🔥 ${trk.streak}j</span>`:''}
         </div>
       </div>
+      <div style="display:flex;gap:2px;margin-top:.4rem;align-items:flex-end">${barHtml}</div>
+      <div style="display:flex;gap:.4rem;margin-top:.3rem;font-size:.68rem;color:#555">
+        <span>${photoAlert} Photos : ${trk.lastPhoto!==null?trk.lastPhoto+'j':'jamais'}</span>
+        <span>${commentAlert} Commentaires : ${trk.lastComment!==null?trk.lastComment+'j':'jamais'}</span>
+      </div>
       <div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.5rem">
-        <button class="btn btn-teal btn-xs" onclick="viewJournalDetail('${s.code}')">📓 Voir journal</button>
+        <button class="btn btn-teal btn-xs" onclick="viewJournalDetail('${s.code}')">📓 Journal</button>
+        <button class="btn btn-ghost btn-xs" onclick="viewStagePhotos('${s.code}')">📷 Photos</button>
         <button class="btn btn-ghost btn-xs" onclick="showQR('${s.code}')">📱 QR</button>
         <button class="btn btn-orange btn-xs" onclick="voirEvalTuteur('${s.code}')">🏢 Éval tuteur</button>
+        <button class="btn btn-ghost btn-xs" onclick="previewPageEleve('${s.code}')" title="Voir ce que voit l'élève">👁️ Élève</button>
+        <button class="btn btn-ghost btn-xs" onclick="previewPageTuteur('${s.code}')" title="Voir ce que voit le tuteur">👁️ Tuteur</button>
       </div>
     </div>`;
   }).join('');
+}
+function viewStagePhotos(code){
+  const s=students.find(x=>x.code===code)||{};
+  const pf=pfmpData[code]||{journal:[]};
+  const allPhotos=[];
+  (pf.journal||[]).forEach(j=>{
+    if(!j.photos?.length)return;
+    const day=(j.date||j.timestamp||'').slice(0,10);
+    j.photos.forEach(p=>allPhotos.push({src:p,date:day,text:j.text||j.description||j.activite||''}));
+  });
+  if(!allPhotos.length){
+    showModal(`📷 Photos stage — ${s.nom} ${s.prenom||''}`,'<div class="alert al-info">Aucune photo de stage</div>','<button class="btn btn-ghost" onclick="closeModal()">Fermer</button>');
+    return;
+  }
+  // Grouper par jour
+  const byDay={};
+  allPhotos.forEach(p=>{if(!byDay[p.date])byDay[p.date]=[];byDay[p.date].push(p);});
+  const days=Object.keys(byDay).sort((a,b)=>b.localeCompare(a));
+  const html=days.map(day=>{
+    const photos=byDay[day];
+    return `<div style="margin-bottom:.75rem"><div style="font-weight:700;font-size:.78rem;color:var(--bleu);margin-bottom:.3rem">📅 ${dateFR(day)} (${photos.length} photo${photos.length>1?'s':''})</div>
+      <div style="display:flex;gap:.3rem;flex-wrap:wrap">${photos.map(p=>`<div style="position:relative">
+        <img src="${p.src}" style="width:70px;height:70px;object-fit:cover;border-radius:6px;border:1px solid #ddd;cursor:pointer" onclick="window.open(this.src,'_blank')" title="${p.text}">
+      </div>`).join('')}</div></div>`;
+  }).join('');
+  showModal(`📷 Photos stage — ${s.nom} ${s.prenom||''} (${allPhotos.length})`,`<div style="max-height:60vh;overflow-y:auto">${html}</div>`,'<button class="btn btn-ghost" onclick="closeModal()">Fermer</button>');
 }
 function viewJournalDetail(code){
   const s=students.find(x=>x.code===code)||{};
@@ -1883,19 +1973,39 @@ async function doDevrouille(ep){
 function renderEleves(){
   const c=document.getElementById('elevesList');
   if(!students.length){c.innerHTML='<div class="empty"><div class="ei">👥</div><p>Aucun élève. Ajoutez votre classe.</p></div>';return;}
-  c.innerHTML=students.map(s=>`
-  <div class="el-row">
+  c.innerHTML=students.map(s=>{
+    const trk=stageTracking(s.code);
+    const alert=getAlertColor(trk.days);
+    // Mini barre 7 jours compacte
+    const miniBar=trk.bar.map(b=>{
+      const bg=b.ok?'var(--vert)':b.partial?'var(--jaune)':'var(--gris3)';
+      return `<div title="${b.date} — ${b.photos} photo${b.photos>1?'s':''}, ${b.comments} comm." style="width:10px;height:10px;border-radius:2px;background:${bg}"></div>`;
+    }).join('');
+    // Indicateurs photo/commentaire compacts
+    const pIcon=trk.lastPhoto===null?'🔴':trk.lastPhoto>=4?'🔴':trk.lastPhoto>=2?'🟡':'🟢';
+    const cIcon=trk.lastComment===null?'🔴':trk.lastComment>=4?'🔴':trk.lastComment>=2?'🟡':'🟢';
+    const stageInfo=trk.bar.length?`<div style="display:flex;align-items:center;gap:3px;margin-top:3px">
+        <div style="display:flex;gap:1px">${miniBar}</div>
+        <span style="font-size:.6rem;color:#888">${pIcon}📷 ${cIcon}📓</span>
+        ${trk.streak?`<span style="font-size:.58rem;color:var(--orange);font-weight:700">🔥${trk.streak}</span>`:''}
+      </div>`:'';
+    return `<div class="el-row" style="border-left:3px solid ${alert.border}">
     <div class="el-av">${(s.nom||'?')[0]}${s.prenom?s.prenom[0]:''}</div>
     <div style="flex:1;cursor:pointer" onclick="goEval('${s.code}')">
       <div class="el-nom">${s.nom} ${s.prenom||''}</div>
       <div class="el-meta">${s.classe||'—'} · <span style="font-family:'JetBrains Mono',monospace;font-size:.65rem">${s.code}</span></div>
+      ${stageInfo}
     </div>
     <div class="el-act">
+      <button class="btn btn-ghost btn-xs" onclick="previewPageEleve('${s.code}')" title="Voir page élève">👁️E</button>
+      <button class="btn btn-ghost btn-xs" onclick="previewPageTuteur('${s.code}')" title="Voir page tuteur">👁️T</button>
+      <button class="btn btn-ghost btn-xs" onclick="viewStagePhotos('${s.code}')" title="Photos stage">📷</button>
       <button class="btn btn-ghost btn-xs" onclick="if(window.activModule)activModule.showStudentHistory('${s.code}')" title="Historique activités">📋</button>
       <button class="btn btn-ghost btn-xs" onclick="showQR('${s.code}')">📱</button>
       <button class="btn btn-rouge btn-xs" onclick="confirmDel('${s.code}')">🗑️</button>
     </div>
-  </div>`).join('');
+  </div>`;
+  }).join('');
   updateStor();
 }
 function showAddEleve(){
@@ -1996,6 +2106,20 @@ function showQR(code){
       document.getElementById('qrt').textContent=ut;
     }
   },100);
+}
+function previewPageEleve(code){
+  const s=students.find(x=>x.code===code);
+  if(!s){toast('Élève introuvable','err');return;}
+  const base=cfg.baseUrl||location.href.replace(/[^/]*$/,'');
+  const url=`${base}inerweb_eleve.html?eleve=${code}&token=${s.token_eleve||'TOKEN'}`;
+  window.open(url,'_blank');
+}
+function previewPageTuteur(code){
+  const s=students.find(x=>x.code===code);
+  if(!s){toast('Élève introuvable','err');return;}
+  const base=cfg.baseUrl||location.href.replace(/[^/]*$/,'');
+  const url=`${base}inerweb_tuteur.html?eleve=${code}&tuteur=${s.token_tuteur||'TOKEN'}`;
+  window.open(url,'_blank');
 }
 function showQRAll(){
   if(!students.length){toast('Aucun élève','warn');return;}
