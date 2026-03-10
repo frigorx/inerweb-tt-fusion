@@ -1028,7 +1028,7 @@ function switchTab(tab){
   if(tab==='bilan'){popSelects();if(cur)renderBilan();}
   if(tab==='rapport'){popSelectsRapport();if(cur)renderRapport();}
   if(tab==='activites'&&window.activModule){activModule.renderList(document.getElementById('activitesList'));const st=activModule.getStats();const c=document.getElementById('activiteStats');if(c)c.innerHTML=`<span class="badge" style="background:var(--bleu2);color:#fff">Total: ${st.total}</span><span class="badge" style="background:var(--ep2);color:#fff">EP2: ${st.byEpreuve.EP2||0}</span><span class="badge" style="background:var(--ep3);color:#fff">EP3: ${(st.byEpreuve['EP3-A']||0)+(st.byEpreuve['EP3-B']||0)+(st.byEpreuve['EP3-C']||0)}</span>`;}
-  if(tab==='stage')renderStage();
+  if(tab==='stage'){renderStage();loadTuteurEvals();}
   if(tab==='export'){renderJournal();renderBackupList();}
   if(tab==='eleves')renderEleves();
   if(tab==='admin')renderAdminTab();
@@ -2547,7 +2547,8 @@ function renderAdminTab(){
 /* ═══ [M] INIT ═══ */
 async function initApp(){
   await initDB();
-  loadLocal();loadAdminData();checkAdmin();loadCfgToForm();updateAll();syncAll();setPhase('formatif');
+  await loadLocalData().catch(()=>{});partenaires=JSON.parse(localStorage.getItem(SPART)||'[]');
+  loadAdminData();checkAdmin();loadCfgToForm();updateAll();syncAll();setPhase('formatif');
   startAutoBackup();
   // Modules Fusion
   if(window.syncQueue) syncQueue.init(db);
