@@ -579,6 +579,15 @@
     if (act.evaluateur) {
       body += '<div style="font-size:.78rem;color:var(--gris)">✏️ Évaluateur : ' + act.evaluateur + '</div>';
     }
+
+    // Zone photos globale de l'activité
+    body += '<div style="margin-top:.75rem"><div style="font-weight:700;margin-bottom:.3rem">📷 Photos / Preuves</div>';
+    body += '<div id="actDetailPhotos-' + act.id + '"><span style="font-size:.72rem;color:#aaa">Chargement...</span></div>';
+    body += '<label style="display:inline-block;margin-top:.3rem;padding:.3rem .6rem;background:var(--bleu2);color:#fff;'
+      + 'border-radius:8px;font-size:.75rem;font-weight:600;cursor:pointer">📸 Ajouter photo'
+      + '<input type="file" accept="image/*" capture="environment" data-actphoto="' + act.id + '" style="display:none">'
+      + '</label></div>';
+
     body += '</div>';
 
     var actions = '<div style="display:flex;gap:.4rem">'
@@ -593,6 +602,30 @@
     actions += '</div>';
 
     window.showModal('📋 ' + (act.titre || 'Activité'), body, actions);
+
+    // Charger les photos existantes et écouter l'ajout
+    _loadDetailPhotos(act);
+    var fileInput = document.querySelector('input[data-actphoto="' + act.id + '"]');
+    if (fileInput) {
+      fileInput.addEventListener('change', function() {
+        if (!this.files.length || !window.photosModule) return;
+        window.photosModule.addPhoto(this.files[0], {
+          studentCode: '_global', actId: act.id, compCode: '_all', epreuve: act.epreuve
+        }).then(function() { _loadDetailPhotos(act); });
+      });
+    }
+  }
+
+  function _loadDetailPhotos(act) {
+    if (!window.photosModule) return;
+    var zone = document.getElementById('actDetailPhotos-' + act.id);
+    if (!zone) return;
+    window.photosModule.getPhotos('_global', act.id, '_all').then(function(photos) {
+      if (!photos.length) { zone.innerHTML = '<span style="font-size:.72rem;color:#aaa">Aucune photo</span>'; return; }
+      zone.innerHTML = photos.map(function(p) {
+        return '<img src="' + (p.thumb || p.data) + '" style="width:60px;height:60px;object-fit:cover;border-radius:6px;margin:.15rem;cursor:pointer">';
+      }).join('');
+    });
   }
 
   // ══════════════════════════════════════════════════════════════
