@@ -91,7 +91,7 @@ body.show-app #screen-app{display:flex;}
 .hdr-logo-name em{display:block;font-style:normal;font-size:.62rem;opacity:.7;font-weight:600;}
 .hdr-mid{flex:1;text-align:center;font-size:.72rem;opacity:.8;font-weight:600;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
 .hdr-right{display:flex;align-items:center;gap:.5rem;flex-shrink:0;}
-.sync-pill{display:flex;align-items:center;gap:.3rem;background:rgba(255,255,255,.15);border-radius:20px;padding:.2rem .6rem;font-size:.68rem;font-weight:700;cursor:pointer;transition:var(--t);}
+.sync-pill{display:flex;align-items:center;gap:.3rem;background:rgba(255,255,255,.15);border-radius:20px;padding:.4rem .8rem;font-size:.72rem;font-weight:700;cursor:pointer;transition:var(--t);min-height:36px;}
 .sync-pill:hover{background:rgba(255,255,255,.25);}
 .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--vert);flex-shrink:0;}
 .sync-dot.offline{background:var(--rouge);}
@@ -118,7 +118,7 @@ body.show-app #screen-app{display:flex;}
 .btn-violet{background:var(--violet);color:#fff;}.btn-violet:hover{opacity:.9;}
 .btn-teal{background:var(--teal);color:#fff;}.btn-teal:hover{opacity:.9;}
 .btn-ghost{background:var(--gris2);color:var(--texte);}.btn-ghost:hover{background:var(--gris3);}
-.btn-sm{padding:.35rem .7rem;font-size:.75rem;}.btn-xs{padding:.2rem .5rem;font-size:.68rem;}.btn-full{width:100%;justify-content:center;}
+.btn-sm{padding:.45rem .8rem;font-size:.78rem;}.btn-xs{padding:.35rem .6rem;font-size:.72rem;min-height:36px;}.btn-full{width:100%;justify-content:center;}
 .fr{display:flex;flex-direction:column;gap:.35rem;}
 .fr label{font-size:.75rem;font-weight:800;color:var(--bleu);text-transform:uppercase;letter-spacing:.3px;}
 .fr input,.fr select,.fr textarea{padding:.6rem .8rem;border:2px solid var(--gris3);border-radius:var(--r2);font-size:.85rem;transition:var(--t);background:#fff;}
@@ -166,8 +166,8 @@ body.show-app #screen-app{display:flex;}
 .eval-hdr{display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem;flex-wrap:wrap;}
 .eval-sel-wrap{display:flex;align-items:center;gap:.4rem;flex:1;min-width:200px;}
 .eval-sel-wrap select{flex:1;padding:.5rem .7rem;border:2px solid var(--gris3);border-radius:var(--r2);font-weight:700;font-size:.82rem;}
-.nav-arrows{display:flex;gap:.25rem;}
-.nav-arrows button{width:30px;height:30px;border:2px solid var(--gris3);background:#fff;border-radius:var(--r2);cursor:pointer;font-size:.8rem;transition:var(--t);}
+.nav-arrows{display:flex;gap:.3rem;}
+.nav-arrows button{width:40px;height:40px;border:2px solid var(--gris3);background:#fff;border-radius:var(--r2);cursor:pointer;font-size:1rem;transition:var(--t);}
 .nav-arrows button:hover{background:var(--bleu);color:#fff;border-color:var(--bleu);}
 .ctx-tabs{display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.75rem;}
 .ctx-tab{padding:.35rem .7rem;border-radius:20px;border:2px solid var(--gris3);background:#fff;cursor:pointer;font-weight:700;font-size:.72rem;transition:var(--t);}
@@ -269,11 +269,11 @@ body.show-app #screen-app{display:flex;}
 
 /* [11] Élèves */
 .eleves-tb{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.75rem;}
-.el-row{display:flex;align-items:center;gap:.75rem;padding:.7rem .9rem;background:#fff;border-radius:var(--r2);margin-bottom:.3rem;box-shadow:var(--ombre2);transition:var(--t);}
+.el-row{display:flex;align-items:center;gap:.75rem;padding:.85rem 1rem;background:#fff;border-radius:var(--r2);margin-bottom:.4rem;box-shadow:var(--ombre2);transition:var(--t);}
 .el-row:hover{background:var(--bleu3);}
-.el-av{width:36px;height:36px;border-radius:50%;background:var(--bleu);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.8rem;flex-shrink:0;}
+.el-av{width:42px;height:42px;border-radius:50%;background:var(--bleu);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.85rem;flex-shrink:0;}
 .el-nom{font-weight:800;font-size:.85rem;}.el-meta{font-size:.68rem;color:var(--gris);font-weight:600;}
-.el-act{display:flex;gap:.25rem;margin-left:auto;flex-shrink:0;}
+.el-act{display:flex;gap:.35rem;margin-left:auto;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end;}
 .stor-bar{background:var(--gris2);border-radius:20px;height:6px;overflow:hidden;margin-top:.3rem;}
 .stor-fill{height:100%;border-radius:20px;background:var(--vert);transition:width .3s;}
 .stor-fill.warn{background:var(--jaune);}.stor-fill.danger{background:var(--rouge);}
@@ -302,13 +302,34 @@ body.show-app #screen-app{display:flex;}
 body.demo-mode .app-header{background:repeating-linear-gradient(45deg,var(--bleu),var(--bleu) 10px,#1e4070 10px,#1e4070 20px);}
 body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;transform:translateX(-50%);background:var(--jaune);color:#333;font-weight:900;font-size:.65rem;padding:.15rem 1rem;border-radius:0 0 6px 6px;z-index:300;letter-spacing:1px;}
 
-/* [13] Responsive */
+/* [13] File upload stylé */
+.file-upload{display:flex;align-items:center;gap:.5rem;padding:.6rem .8rem;background:var(--gris2);border:2px dashed var(--gris3);border-radius:var(--r2);cursor:pointer;transition:var(--t);min-height:48px;}
+.file-upload:hover{border-color:var(--bleu2);background:var(--bleu3);}
+.file-upload .fu-ico{font-size:1.2rem;flex-shrink:0;}
+.file-upload .fu-txt{font-size:.78rem;font-weight:700;color:var(--bleu);}
+.file-upload .fu-sub{font-size:.65rem;color:var(--gris);}
+.file-upload input[type="file"]{position:absolute;opacity:0;width:0;height:0;}
+
+/* [14] Responsive */
 @media(max-width:640px){
   .dash-stats{grid-template-columns:repeat(2,1fr);}
   .student-grid,.bilan-notes{grid-template-columns:1fr;}
   .grid2,.grid3{grid-template-columns:1fr;}
   .export-grid{grid-template-columns:repeat(2,1fr);}
   .hdr-mid{display:none;}
+  .el-act{gap:.3rem;}
+  .nav-btn{min-width:56px;min-height:56px;font-size:.68rem;}
+  .nav-btn .ni{font-size:1.6rem;}
+  .ctx-tab{padding:.4rem .6rem;font-size:.72rem;}
+  .sc{padding:1rem;}
+  .sc-bot{font-size:.7rem;}
+  .comp-hdr{padding:.8rem 1rem;}
+}
+@media(max-width:400px){
+  .el-row{padding:.75rem .7rem;gap:.5rem;}
+  .el-av{width:36px;height:36px;font-size:.75rem;}
+  .btn-xs{padding:.3rem .5rem;font-size:.68rem;}
+  .nav-btn{min-width:48px;padding:.4rem .1rem;font-size:.6rem;}
 }
 </style>
 </head>
@@ -511,15 +532,27 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
           <div style="font-weight:800;color:var(--bleu);margin-bottom:.5rem">📎 Documents</div>
           <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.4rem">
             <div style="flex:1;min-width:200px">
-              <div style="font-size:.72rem;font-weight:700;color:var(--teal);margin-bottom:.3rem">📄 Documents élève (visible par les élèves)</div>
-              <input type="file" id="tpDocsEleve" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.png" style="font-size:.75rem">
-              <div style="font-size:.62rem;color:#888;margin-top:.15rem">Sujet, fiche de travail...</div>
-              <div style="margin-top:.2rem"><label style="font-size:.7rem;cursor:pointer"><input type="checkbox" id="tpAvecCorrection"> Inclure la correction</label></div>
+              <div style="font-size:.78rem;font-weight:700;color:var(--teal);margin-bottom:.4rem">📄 Documents élève</div>
+              <label class="file-upload" style="border-color:var(--teal)">
+                <span class="fu-ico">📎</span>
+                <div style="flex:1">
+                  <div class="fu-txt" id="tpDocsEleveLabel">Ajouter des fichiers</div>
+                  <div class="fu-sub">Sujet, fiche de travail... (visible par les élèves)</div>
+                </div>
+                <input type="file" id="tpDocsEleve" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.png" onchange="document.getElementById('tpDocsEleveLabel').textContent=this.files.length?this.files.length+' fichier(s)':'Ajouter des fichiers'">
+              </label>
+              <label style="display:flex;align-items:center;gap:.4rem;font-size:.78rem;cursor:pointer;margin-top:.4rem;padding:.3rem 0"><input type="checkbox" id="tpAvecCorrection" style="width:18px;height:18px"> Inclure la correction</label>
             </div>
             <div style="flex:1;min-width:200px">
-              <div style="font-size:.72rem;font-weight:700;color:var(--orange);margin-bottom:.3rem">🔒 Documents prof (confidentiel)</div>
-              <input type="file" id="tpDocsProf" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.png" style="font-size:.75rem">
-              <div style="font-size:.62rem;color:#888;margin-top:.15rem">Plan de séance, correction, ingénierie...</div>
+              <div style="font-size:.78rem;font-weight:700;color:var(--orange);margin-bottom:.4rem">🔒 Documents prof</div>
+              <label class="file-upload" style="border-color:var(--orange)">
+                <span class="fu-ico">🔒</span>
+                <div style="flex:1">
+                  <div class="fu-txt" id="tpDocsProfLabel">Ajouter des fichiers</div>
+                  <div class="fu-sub">Plan de séance, correction, ingénierie (confidentiel)</div>
+                </div>
+                <input type="file" id="tpDocsProf" multiple accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.jpg,.png" onchange="document.getElementById('tpDocsProfLabel').textContent=this.files.length?this.files.length+' fichier(s)':'Ajouter des fichiers'">
+              </label>
             </div>
           </div>
         </div>
@@ -1193,14 +1226,14 @@ function renderProgression(){
     const isToday=d===today.getDate()&&_progMonth===today.getMonth()&&_progYear===today.getFullYear();
     const bg=dayActs.length?'var(--bleu3)':isToday?'#fff8e1':'#fafafa';
     const border=isToday?'2px solid var(--orange)':'1px solid var(--gris3)';
-    cal+=`<div style="min-height:48px;background:${bg};border:${border};border-radius:6px;padding:2px;cursor:pointer" onclick="${dayActs.length?`showDayActivities(${_progYear},${_progMonth},${d})`:`createFromCalendar(${_progYear},${_progMonth},${d})`}">`;
+    cal+=`<div style="min-height:52px;background:${bg};border:${border};border-radius:6px;padding:4px;cursor:pointer" onclick="${dayActs.length?`showDayActivities(${_progYear},${_progMonth},${d})`:`createFromCalendar(${_progYear},${_progMonth},${d})`}">`;
     cal+=`<div style="font-size:.65rem;font-weight:700;color:${isToday?'var(--orange)':'#555'};text-align:right;padding-right:3px">${d}${!dayActs.length?'<span style="font-size:.45rem;color:var(--gris);float:left">+</span>':''}</div>`;
     if(dayActs.length){
       const maxShow=2;
       dayActs.slice(0,maxShow).forEach(a=>{
         const epColors={'EP1':'var(--orange)','EP2':'var(--ep2)','EP3':'var(--ep3)','MIXTE':'var(--bleu)'};
         const epC=epColors[a.epreuve]||'var(--gris)';
-        cal+=`<div style="font-size:.5rem;background:${epC};color:#fff;border-radius:3px;padding:0 3px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.titre||a.id}</div>`;
+        cal+=`<div style="font-size:.58rem;background:${epC};color:#fff;border-radius:3px;padding:1px 4px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.titre||a.id}</div>`;
       });
       if(dayActs.length>maxShow)cal+=`<div style="font-size:.48rem;color:var(--gris);text-align:center">+${dayActs.length-maxShow}</div>`;
     }
@@ -1384,23 +1417,23 @@ function renderDash(){
         <div class="sc-bar-row"><span style="color:var(--ep2)">EP2</span><div class="sc-track"><div class="sc-fill f-ep2" style="width:${e2pct}%"></div></div><span>${e2done}/${COMP_EP2.length}</span></div>
         <div class="sc-bar-row"><span style="color:var(--ep3)">EP3</span><div class="sc-track"><div class="sc-fill f-ep3" style="width:${e3pct}%"></div></div><span>${e3done}/${COMP_EP3.length}</span></div>
       </div>
-      ${trk.bar.length?`<div style="display:flex;align-items:center;gap:3px;margin:.3rem 0 .1rem">
-        <span style="font-size:.58rem;font-weight:700;color:var(--gris)">Stage</span>
-        <div style="display:flex;gap:1px">${miniBar}</div>
-        <span style="font-size:.55rem">${pI}📷${cI}📓</span>
-        ${trk.streak?`<span style="font-size:.55rem;color:var(--orange);font-weight:700">🔥${trk.streak}</span>`:''}
+      ${trk.bar.length?`<div style="display:flex;align-items:center;gap:4px;margin:.35rem 0 .15rem">
+        <span style="font-size:.65rem;font-weight:700;color:var(--gris)">Stage</span>
+        <div style="display:flex;gap:2px">${miniBar}</div>
+        <span style="font-size:.65rem">${pI}📷${cI}📓</span>
+        ${trk.streak?`<span style="font-size:.65rem;color:var(--orange);font-weight:700">🔥${trk.streak}</span>`:''}
       </div>`:''}
       <div class="sc-bot" style="flex-wrap:wrap;gap:.2rem">
         <span>🕐 ${s.derniere_eval?dateFR(s.derniere_eval):'—'}</span>
         <span style="font-size:.62rem;color:var(--bleu)">📋${nbActs}</span>
         ${alerte?`<span class="sc-alerte">⚠️ ${s.alerte}</span>`:journalAlert?`<span class="sc-alerte">📓 ${daysSinceJournal}j</span>`:''}
       </div>
-      <div style="display:flex;gap:3px;margin-top:.3rem;flex-wrap:wrap;justify-content:center" onclick="event.stopPropagation()">
-        <button class="btn btn-ghost btn-xs" onclick="previewPageEleve('${s.code}')" title="Voir page élève" style="font-size:.6rem;padding:2px 5px">👁️ Élève</button>
-        <button class="btn btn-ghost btn-xs" onclick="previewPageTuteur('${s.code}')" title="Voir page tuteur" style="font-size:.6rem;padding:2px 5px">👁️ Tuteur</button>
-        <button class="btn btn-ghost btn-xs" onclick="viewStagePhotos('${s.code}')" title="Photos stage" style="font-size:.6rem;padding:2px 5px">📷</button>
-        <button class="btn btn-ghost btn-xs" onclick="if(window.activModule)activModule.showStudentHistory('${s.code}')" title="Historique" style="font-size:.6rem;padding:2px 5px">📋</button>
-        <button class="btn btn-ghost btn-xs" onclick="showQR('${s.code}')" title="QR" style="font-size:.6rem;padding:2px 5px">📱</button>
+      <div style="display:flex;gap:4px;margin-top:.4rem;flex-wrap:wrap;justify-content:center" onclick="event.stopPropagation()">
+        <button class="btn btn-ghost btn-xs" onclick="previewPageEleve('${s.code}')" title="Voir page élève">👁️E</button>
+        <button class="btn btn-ghost btn-xs" onclick="previewPageTuteur('${s.code}')" title="Voir page tuteur">👁️T</button>
+        <button class="btn btn-ghost btn-xs" onclick="viewStagePhotos('${s.code}')" title="Photos stage">📷</button>
+        <button class="btn btn-ghost btn-xs" onclick="if(window.activModule)activModule.showStudentHistory('${s.code}')" title="Historique">📋</button>
+        <button class="btn btn-ghost btn-xs" onclick="showQR('${s.code}')" title="QR">📱</button>
       </div>
     </div>`;
   });
@@ -2279,15 +2312,15 @@ function renderEleves(){
     // Mini barre 7 jours compacte
     const miniBar=trk.bar.map(b=>{
       const bg=b.ok?'var(--vert)':b.partial?'var(--jaune)':'var(--gris3)';
-      return `<div title="${b.date} — ${b.photos} photo${b.photos>1?'s':''}, ${b.comments} comm." style="width:10px;height:10px;border-radius:2px;background:${bg}"></div>`;
+      return `<div title="${b.date} — ${b.photos} photo${b.photos>1?'s':''}, ${b.comments} comm." style="width:14px;height:14px;border-radius:3px;background:${bg}"></div>`;
     }).join('');
     // Indicateurs photo/commentaire compacts
     const pIcon=trk.lastPhoto===null?'🔴':trk.lastPhoto>=4?'🔴':trk.lastPhoto>=2?'🟡':'🟢';
     const cIcon=trk.lastComment===null?'🔴':trk.lastComment>=4?'🔴':trk.lastComment>=2?'🟡':'🟢';
-    const stageInfo=trk.bar.length?`<div style="display:flex;align-items:center;gap:3px;margin-top:3px">
-        <div style="display:flex;gap:1px">${miniBar}</div>
-        <span style="font-size:.6rem;color:#888">${pIcon}📷 ${cIcon}📓</span>
-        ${trk.streak?`<span style="font-size:.58rem;color:var(--orange);font-weight:700">🔥${trk.streak}</span>`:''}
+    const stageInfo=trk.bar.length?`<div style="display:flex;align-items:center;gap:4px;margin-top:4px">
+        <div style="display:flex;gap:2px">${miniBar}</div>
+        <span style="font-size:.68rem;color:#888">${pIcon}📷 ${cIcon}📓</span>
+        ${trk.streak?`<span style="font-size:.68rem;color:var(--orange);font-weight:700">🔥${trk.streak}</span>`:''}
       </div>`:'';
     return `<div class="el-row" style="border-left:3px solid ${alert.border}">
     <div class="el-av">${(s.nom||'?')[0]}${s.prenom?s.prenom[0]:''}</div>
