@@ -668,7 +668,7 @@
           + (s.nom || '') + ' ' + (s.prenom ? s.prenom.charAt(0) + '.' : '') + '</button>';
       });
     } else {
-      body += '<span style="color:var(--rouge);font-size:.78rem;font-weight:600">⚠️ Synchronisez d\'abord vos élèves (onglet Élèves)</span>';
+      body += '<span style="color:var(--rouge);font-size:.78rem;font-weight:600">⚠️ Aucun élève chargé. Ajoutez des élèves ou utilisez le mode démo.</span>';
     }
     body += '</div></div>';
 
