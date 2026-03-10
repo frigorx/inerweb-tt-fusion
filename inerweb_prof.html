@@ -396,6 +396,7 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
       <div class="eleves-tb" style="flex-wrap:wrap">
         <button class="btn btn-primary btn-sm" onclick="showAddEleve()">➕ Ajouter</button>
         <button class="btn btn-ghost btn-sm" onclick="document.getElementById('importCsv').click()">📥 Import</button>
+        <button class="btn btn-ghost btn-xs" onclick="showImportHelp()" title="Format d'import" style="font-size:.7rem;padding:2px 6px">❓</button>
         <input type="file" id="importCsv" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleImportFile(this.files[0])">
         <button class="btn btn-ghost btn-sm" onclick="showQRAll()">📱 QR</button>
         <button class="btn btn-ghost btn-sm" onclick="showScanner()">📷 Scan</button>
@@ -2295,7 +2296,7 @@ function renderEleves(){
       ${stageInfo}
     </div>
     <div class="el-act">
-      <button class="btn btn-ghost btn-xs" onclick="showEditGroupe('${s.code}')" title="Groupe">👥</button>
+      <button class="btn btn-ghost btn-xs" onclick="toggleGroupe('${s.code}')" title="Groupe">👥</button>
       <button class="btn btn-ghost btn-xs" onclick="previewPageEleve('${s.code}')" title="Voir page élève">👁️E</button>
       <button class="btn btn-ghost btn-xs" onclick="previewPageTuteur('${s.code}')" title="Voir page tuteur">👁️T</button>
       <button class="btn btn-ghost btn-xs" onclick="viewStagePhotos('${s.code}')" title="Photos stage">📷</button>
@@ -2368,22 +2369,40 @@ function doPromotion(){
   saveLocal();updateAll();closeModal();
   toast(`${codes.length} élève${codes.length>1?'s':''} promu${codes.length>1?'s':''} en 2ème année`,'ok');
 }
-function showEditGroupe(code){
+function toggleGroupe(code){
   const s=students.find(x=>x.code===code);if(!s)return;
-  showModal('👥 Groupe — '+s.nom,`
-    <div class="fr"><label>Groupe</label><select id="editGroupe">
-      <option value="" ${!s.groupe?'selected':''}>Aucun</option>
-      <option value="G1" ${s.groupe==='G1'?'selected':''}>Groupe 1</option>
-      <option value="G2" ${s.groupe==='G2'?'selected':''}>Groupe 2</option>
-    </select></div>`,
-    `<button class="btn btn-primary" onclick="doEditGroupe('${code}')">✅ Valider</button><button class="btn btn-ghost" onclick="closeModal()">Annuler</button>`);
-}
-function doEditGroupe(code){
-  const s=students.find(x=>x.code===code);if(!s)return;
-  s.groupe=document.getElementById('editGroupe').value;
+  // Cycle : aucun → G1 → G2 → aucun
+  if(!s.groupe)s.groupe='G1';
+  else if(s.groupe==='G1')s.groupe='G2';
+  else s.groupe='';
   window.students=students;
-  saveLocal();closeModal();renderEleves();
-  toast('Groupe mis à jour','ok');
+  saveLocal();renderEleves();
+  toast(s.groupe?s.nom+' → '+s.groupe:s.nom+' → aucun groupe','ok');
+}
+function showImportHelp(){
+  showModal('📥 Format d\'import CSV / Excel',`
+    <div style="font-size:.82rem">
+      <p style="margin-bottom:.5rem">Le fichier doit contenir une <strong>ligne d'en-tête</strong> avec les colonnes suivantes :</p>
+      <table style="width:100%;font-size:.75rem;border-collapse:collapse;margin-bottom:.75rem">
+        <tr style="background:var(--bleu3)"><th style="padding:.3rem .5rem;text-align:left">Colonne</th><th style="padding:.3rem .5rem;text-align:left">Obligatoire</th><th style="padding:.3rem .5rem;text-align:left">Exemple</th></tr>
+        <tr style="border-bottom:1px solid var(--gris3)"><td style="padding:.3rem .5rem"><strong>nom</strong></td><td>Oui</td><td>DUPONT</td></tr>
+        <tr style="border-bottom:1px solid var(--gris3)"><td style="padding:.3rem .5rem"><strong>prenom</strong></td><td>Recommandé</td><td>Martin</td></tr>
+        <tr style="border-bottom:1px solid var(--gris3)"><td style="padding:.3rem .5rem"><strong>classe</strong></td><td>Non</td><td>CAP IFCA 1</td></tr>
+        <tr style="border-bottom:1px solid var(--gris3)"><td style="padding:.3rem .5rem"><strong>groupe</strong></td><td>Non</td><td>G1 ou G2</td></tr>
+        <tr><td style="padding:.3rem .5rem"><strong>annee</strong></td><td>Non</td><td>1 ou 2</td></tr>
+      </table>
+      <div style="font-weight:700;color:var(--bleu);margin-bottom:.3rem">Exemple CSV :</div>
+      <pre style="background:var(--gris2);padding:.5rem;border-radius:6px;font-size:.7rem;overflow-x:auto;font-family:monospace">nom;prenom;classe;groupe;annee
+DUPONT;Martin;CAP IFCA 1;G1;1
+MARTIN;Sophie;CAP IFCA 1;G2;1
+BERNARD;Lucas;CAP IFCA 2;G1;2</pre>
+      <div style="margin-top:.5rem;font-size:.72rem;color:#666">
+        <p><strong>Astuce :</strong> Si la colonne "prenom" est absente, le système essaie de séparer automatiquement (les MAJUSCULES = nom, le reste = prénom).</p>
+        <p style="margin-top:.3rem">Colonnes acceptées aussi : <em>élève, identité, formation, filière</em></p>
+        <p style="margin-top:.3rem">Formats : <strong>.csv</strong> (séparateur ; ou ,) · <strong>.xlsx</strong> · <strong>.xls</strong></p>
+      </div>
+    </div>`,
+    '<button class="btn btn-ghost" onclick="closeModal()">Fermer</button>');
 }
 function confirmDel(code){
   const s=students.find(x=>x.code===code);if(!s)return;
@@ -2435,10 +2454,14 @@ async function importRows(rows){
       const sp=splitNomPrenom(raw);nom=sp.nom;prenom=sp.prenom;
     }
     nom=nom.toUpperCase().trim();
-    const classe=(r['classe']||r['formation']||r['filière']||r['filiere']||r['groupe']||'CAP IFCA 1').trim();
+    const classe=(r['classe']||r['formation']||r['filière']||r['filiere']||'CAP IFCA 1').trim();
+    const groupe=(r['groupe']||r['group']||r['grp']||'').trim().toUpperCase();
+    const anneeRaw=(r['année']||r['annee']||r['year']||'').trim();
+    const annee=anneeRaw?parseInt(anneeRaw)||1:1;
     if(!nom||students.find(s=>s.nom===nom&&s.prenom===prenom))continue;
-    try{await apiCall({action:'addEleve',data:{nom,prenom,classe,referentiel:'CAP_IFCA'}});n++;}
-    catch{const code='ELV-'+String(students.length+1).padStart(3,'0');students.push({code,nom,prenom,classe,statut:'actif',referentiel:'CAP_IFCA',token_eleve:Math.random().toString(36).substring(2,10).toUpperCase(),token_tuteur:Math.random().toString(36).substring(2,10).toUpperCase()});n++;}
+    const grpNorm=groupe.match(/^G?1$/)?'G1':groupe.match(/^G?2$/)?'G2':groupe;
+    try{await apiCall({action:'addEleve',data:{nom,prenom,classe,groupe:grpNorm,annee,referentiel:'CAP_IFCA'}});n++;}
+    catch{const code='ELV-'+String(students.length+1).padStart(3,'0');students.push({code,nom,prenom,classe,groupe:grpNorm,annee,statut:'actif',referentiel:'CAP_IFCA',token_eleve:Math.random().toString(36).substring(2,10).toUpperCase(),token_tuteur:Math.random().toString(36).substring(2,10).toUpperCase()});n++;}
   }
   saveLocal();await syncAll();hideSpinner();toast(`${n} élève(s) importé(s)`,'ok');
 }
@@ -2465,15 +2488,31 @@ function showQR(code){
 function previewPageEleve(code){
   const s=students.find(x=>x.code===code);
   if(!s){toast('Élève introuvable','err');return;}
-  const base=cfg.baseUrl||location.href.replace(/[^/]*$/,'');
-  const url=`${base}inerweb_eleve.html?eleve=${code}&token=${s.token_eleve||'TOKEN'}`;
+  // Stocker les données élève dans sessionStorage pour le mode preview
+  const previewData={
+    eleve:{code:s.code,nom:s.nom,prenom:s.prenom,classe:s.classe,entreprise_nom:s.entreprise_nom||'',tuteur_nom:s.tuteur_nom||'',pfmp_debut:s.pfmp_debut||'',pfmp_fin:s.pfmp_fin||''},
+    evals:_buildEvals(code),
+    journal:(pfmpData[code]||{}).journal||[]
+  };
+  sessionStorage.setItem('inerwebPreview',JSON.stringify(previewData));
+  const base=location.href.replace(/[^/]*$/,'');
+  const url=`${base}inerweb_eleve.html?preview=1&token=${s.token_eleve||s.code}`;
   window.open(url,'_blank');
+}
+function _buildEvals(code){
+  const v=validations[code]||[];
+  const evals={EP2:{},EP3:{}};
+  v.forEach(x=>{
+    const ep=x.epreuve==='EP2'?'EP2':'EP3';
+    if(x.niveau&&x.niveau!=='NE')evals[ep][x.competence]=x.niveau;
+  });
+  return evals;
 }
 function previewPageTuteur(code){
   const s=students.find(x=>x.code===code);
   if(!s){toast('Élève introuvable','err');return;}
-  const base=cfg.baseUrl||location.href.replace(/[^/]*$/,'');
-  const url=`${base}inerweb_tuteur.html?eleve=${code}&tuteur=${s.token_tuteur||'TOKEN'}`;
+  const base=location.href.replace(/[^/]*$/,'');
+  const url=`${base}inerweb_tuteur.html?preview=1&eleve=${code}&tuteur=${s.token_tuteur||s.code}`;
   window.open(url,'_blank');
 }
 function showQRAll(){

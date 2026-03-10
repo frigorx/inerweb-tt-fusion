@@ -519,8 +519,22 @@ async function exportZIP(){
 document.addEventListener('DOMContentLoaded',()=>{
   const params=new URLSearchParams(window.location.search);
   const tokenParam=params.get('token')||params.get('eleve');
+  // Mode preview prof : charger depuis sessionStorage
+  if(params.get('preview')==='1'){
+    try{
+      const pd=JSON.parse(sessionStorage.getItem('inerwebPreview')||'null');
+      if(pd&&pd.eleve){
+        eleve=pd.eleve;evals=pd.evals||{};journal=pd.journal||[];
+        startApp();
+        toast('Mode aperçu (vue prof)','ok');
+        return;
+      }
+    }catch(e){console.error(e);}
+  }
   if(tokenParam)document.getElementById('tokenInput').value=tokenParam;
-  if(loadLocal()&&eleve)startApp();
+  if(loadLocal()&&eleve){startApp();return;}
+  // Auto-login si token en URL
+  if(tokenParam){doLogin();}
 });
 document.getElementById('tokenInput').addEventListener('keypress',e=>{if(e.key==='Enter')doLogin();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closePhotoModal();});

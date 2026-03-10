@@ -990,7 +990,15 @@ addTel();addEmail();addTuteur();
 chargerLocal();
 // Deep-link
 const _p=new URLSearchParams(window.location.search);
-if(_p.get('eleve')){
+if(_p.get('preview')==='1'&&_p.get('eleve')){
+  // Mode preview prof : afficher la page tuteur sans vérification API
+  eleveCode=_p.get('eleve');
+  tuteurToken=_p.get('tuteur')||'PREVIEW';
+  document.getElementById('setupScreen').style.display='none';
+  document.getElementById('mainApp').style.display='flex';
+  document.getElementById('eleveNom').textContent='Aperçu prof';
+  toast('Mode aperçu (vue prof)','ok');
+} else if(_p.get('eleve')){
   const d=JSON.parse(localStorage.getItem('inerweb-tuteur-data')||'{}');
   if(d.entreprise?.nom&&d.tuteurs?.[0]?.nom){
     entreprise=d.entreprise;tuteurs=d.tuteurs;
