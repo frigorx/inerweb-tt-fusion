@@ -802,6 +802,11 @@ let students=[],validations={},notes={},pfmpData={},partenaires=[],customCriteri
 let users=[],classes=[],adminJournal=[];
 let cur=null,curCtx='atelier',curSit='A',curPhase='formatif';
 let online=false,demoMode=false,isAdmin=false,currentUser=null;
+
+/* Exposer les données globales pour les modules js/ externes */
+window.COMP_EP2=COMP_EP2;window.COMP_EP3=COMP_EP3;
+window.CRIT2=CRIT2;window.CRIT3=CRIT3;
+window.SIT_INFO=SIT_INFO;window.NV=NV;window.NV_PCT=NV_PCT;window.NV_LBL=NV_LBL;
 const SK='inerweb-tt-prof-v4',SCFG='inerweb-tt-cfg',SPART='inerweb-tt-parts',SUSERS='inerweb-tt-users',SCLASSES='inerweb-tt-classes',SJOURNAL='inerweb-tt-journal';
 const DB_NAME='inerwebtt-db',DB_VERSION=2;
 let db=null,backupInterval=null;
@@ -870,6 +875,7 @@ async function restoreBackup(id){
   else{const all=JSON.parse(localStorage.getItem('inerweb-backups')||'[]');bk=all.find(x=>x.id===id);}
   if(!bk){toast('Backup introuvable','err');return;}
   students=bk.students||[];validations=bk.validations||{};notes=bk.notes||{};pfmpData=bk.pfmpData||{};appCfg=bk.appCfg||{};
+  window.students=students;window.validations=validations;window.appCfg=appCfg;
   await saveLocalData();updateAll();toast('Backup restauré','ok');
 }
 async function deleteBackup(id){
@@ -888,9 +894,10 @@ async function saveLocalData(){
   updateStor();
 }
 async function loadLocalData(){
-  if(db){const d=await loadIDB('data','main');if(d){students=d.students||[];validations=d.validations||{};notes=d.notes||{};pfmpData=d.pfmpData||{};appCfg=d.appCfg||{};customCriteria=d.customCriteria||{};compLocks=d.compLocks||{};return true;}}
+  if(db){const d=await loadIDB('data','main');if(d){students=d.students||[];validations=d.validations||{};notes=d.notes||{};pfmpData=d.pfmpData||{};appCfg=d.appCfg||{};customCriteria=d.customCriteria||{};compLocks=d.compLocks||{};window.students=students;window.validations=validations;window.appCfg=appCfg;return true;}}
   const d=localStorage.getItem(SK);if(!d)return false;
   const p=JSON.parse(d);students=p.students||[];validations=p.validations||{};notes=p.notes||{};pfmpData=p.pfmpData||{};appCfg=p.appCfg||{};customCriteria=p.customCriteria||{};compLocks=p.compLocks||{};
+  window.students=students;window.validations=validations;window.appCfg=appCfg;
   return true;
 }
 
@@ -959,7 +966,7 @@ async function syncAll(){
   try{
     const dash=await apiCall({action:'getDashboard'});
     if(!Array.isArray(dash)) throw new Error('invalid');
-    students=dash;
+    students=dash;window.students=students;
     validations={}; notes={};
     await Promise.all(students.slice(0,30).map(async s=>{
       try{
@@ -2284,6 +2291,7 @@ function loadDemoData(){
     {epreuve:'EP2',competence:'C3.6',critere:'',niveau:'M',evaluateur:'F. Henninot',timestamp:new Date().toISOString(),phase:'formatif',contexte:'pfmp1'},
   ];
   notes['ELV-001']={EP2:{note_finale:null,cloture:false},EP3:{note_finale:null,cloture:false}};
+  window.students=students;window.validations=validations;
   cur='ELV-001';updateAll();
 }
 
