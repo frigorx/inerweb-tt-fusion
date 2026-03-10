@@ -56,10 +56,14 @@
   // ══════════════════════════════════════════════════════════════
 
   function openCreate() {
+    console.log('[tp-manager] openCreate appelé — COMP_EP2:', (window.COMP_EP2||[]).length, 'students:', (window.students||[]).length);
     window._tpForm = { ep: 'EP2', comps: [], eleves: [], phasesEleves: {} };
     var sts = window.students || [];
 
-    var h = '<div style="font-size:.85rem">';
+    var h = '<div style="font-size:.85rem">'
+      + '<div style="background:#d4edda;border:1px solid #28a745;border-radius:8px;padding:.4rem .6rem;margin-bottom:.6rem;font-size:.75rem;color:#155724">'
+      + '✅ Module TP Manager v2 chargé — ' + (window.COMP_EP2||[]).length + ' compétences EP2 disponibles, '
+      + sts.length + ' élèves</div>';
 
     // 1. Épreuve
     h += '<div style="font-weight:700;margin-bottom:.4rem">Épreuve</div>';
@@ -89,15 +93,14 @@
       + 'style="padding:.5rem .75rem;border:2px solid var(--gris3);border-radius:10px;font-size:.85rem">';
     h += '</div>';
 
-    // 4. Compétences
+    // 4. Compétences — toujours visible, pas dépliable
     h += '<div style="margin-bottom:.75rem">';
-    h += '<div onclick="tpManager.toggleSection(\'tpCompsZone\',\'tpArrowC\')" style="display:flex;justify-content:space-between;align-items:center;'
-      + 'padding:.5rem .6rem;background:var(--gris3);border-radius:8px;cursor:pointer;margin-bottom:.3rem">'
-      + '<span style="font-weight:700">🎯 Compétences <span id="tpCompCount" style="font-weight:400;color:var(--gris);font-size:.78rem">(0)</span></span>'
-      + '<div style="display:flex;gap:.3rem;align-items:center">'
-      + '<button type="button" onclick="event.stopPropagation();tpManager.toggleAllComps()" '
-      + 'style="background:none;border:1px solid #ccc;border-radius:6px;padding:.2rem .5rem;font-size:.7rem;cursor:pointer">Tout cocher</button>'
-      + '<span id="tpArrowC">▼</span></div></div>';
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;'
+      + 'padding:.5rem .6rem;background:#e8f0f8;border:2px solid #2d5a8c;border-radius:8px;margin-bottom:.4rem">'
+      + '<span style="font-weight:700;color:#2d5a8c">🎯 Compétences <span id="tpCompCount" style="font-weight:400;font-size:.78rem">(0)</span></span>'
+      + '<button type="button" onclick="tpManager.toggleAllComps()" '
+      + 'style="background:#2d5a8c;color:#fff;border:none;border-radius:6px;padding:.3rem .6rem;font-size:.72rem;font-weight:700;cursor:pointer">Tout cocher / décocher</button>'
+      + '</div>';
     h += '<div id="tpCompsZone" style="display:flex;flex-wrap:wrap;gap:.3rem">';
     // Rendre les compétences EP2 directement dans le HTML
     var comps = _comps('EP2');
@@ -115,15 +118,14 @@
     }
     h += '</div></div>';
 
-    // 5. Élèves
+    // 5. Élèves — toujours visible
     h += '<div style="margin-bottom:.75rem">';
-    h += '<div onclick="tpManager.toggleSection(\'tpElevesZone\',\'tpArrowE\')" style="display:flex;justify-content:space-between;align-items:center;'
-      + 'padding:.5rem .6rem;background:var(--gris3);border-radius:8px;cursor:pointer;margin-bottom:.3rem">'
-      + '<span style="font-weight:700">👥 Élèves <span id="tpElvCount" style="font-weight:400;color:var(--gris);font-size:.78rem">(0/' + sts.length + ')</span></span>'
-      + '<div style="display:flex;gap:.3rem;align-items:center">'
-      + '<button type="button" onclick="event.stopPropagation();tpManager.toggleAllEleves()" '
-      + 'style="background:none;border:1px solid #ccc;border-radius:6px;padding:.2rem .5rem;font-size:.7rem;cursor:pointer">Tout cocher</button>'
-      + '<span id="tpArrowE">▼</span></div></div>';
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;'
+      + 'padding:.5rem .6rem;background:#e8f0f8;border:2px solid #2d5a8c;border-radius:8px;margin-bottom:.4rem">'
+      + '<span style="font-weight:700;color:#2d5a8c">👥 Élèves <span id="tpElvCount" style="font-weight:400;font-size:.78rem">(0/' + sts.length + ')</span></span>'
+      + '<button type="button" onclick="tpManager.toggleAllEleves()" '
+      + 'style="background:#2d5a8c;color:#fff;border:none;border-radius:6px;padding:.3rem .6rem;font-size:.72rem;font-weight:700;cursor:pointer">Tout cocher / décocher</button>'
+      + '</div>';
     h += '<div id="tpElevesZone" style="display:flex;flex-wrap:wrap;gap:.3rem">';
     if (sts.length) {
       sts.forEach(function (s) {
