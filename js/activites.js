@@ -612,20 +612,7 @@
     });
     body += '</div>';
 
-    // Phase par défaut
-    body += '<div style="font-weight:700;margin-bottom:.4rem">Phase par défaut</div>';
-    body += '<div id="actPhaseBtns" style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;margin-bottom:.75rem">';
-    body += '<button type="button" data-act="pickPhase" data-ph="formatif" class="actPhBtn" '
-      + 'style="padding:.5rem;border:2px solid var(--bleu2);background:var(--bleu3);color:var(--bleu2);'
-      + 'border-radius:10px;font-weight:700;font-size:.82rem;cursor:pointer;'
-      + '-webkit-tap-highlight-color:rgba(0,0,0,.1)">'
-      + '📘 Formatif</button>';
-    body += '<button type="button" data-act="pickPhase" data-ph="certificatif" class="actPhBtn" '
-      + 'style="padding:.5rem;border:2px solid var(--orange);background:var(--orange2);color:var(--orange);'
-      + 'border-radius:10px;font-weight:700;font-size:.82rem;cursor:pointer;'
-      + '-webkit-tap-highlight-color:rgba(0,0,0,.1)">'
-      + '📙 Certificatif</button>';
-    body += '</div>';
+    // Phase par défaut (gérée individuellement par élève dans la zone dispatch)
 
     // Titre
     body += '<div style="margin-bottom:.75rem">';
@@ -736,16 +723,6 @@
 
   function _pickPhase(ph) {
     window._actState.phase = ph;
-    document.querySelectorAll('.actPhBtn').forEach(function(btn) {
-      var isActive = btn.dataset.ph === ph;
-      if (btn.dataset.ph === 'formatif') {
-        btn.style.background = isActive ? 'var(--bleu2)' : 'var(--bleu3)';
-        btn.style.color = isActive ? '#fff' : 'var(--bleu2)';
-      } else {
-        btn.style.background = isActive ? 'var(--orange)' : 'var(--orange2)';
-        btn.style.color = isActive ? '#fff' : 'var(--orange)';
-      }
-    });
     // Mettre à jour les élèves qui n'ont pas encore de phase individuelle
     if (window._actState.phasesEleves) {
       (window._actState.eleves || []).forEach(function(code) {
