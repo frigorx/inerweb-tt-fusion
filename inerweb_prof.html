@@ -878,10 +878,10 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
     <div class="tab-pane" id="tab-admin"><div class="tab-inner">
       <div class="card" style="border-top:4px solid var(--orange);">
         <div class="card-title" style="color:var(--orange)">👑 Administration</div>
-        <p style="font-size:.78rem;color:var(--gris);margin-bottom:1rem;">Gestion des évaluateurs et de leurs droits d'accès.</p>
-        
+        <p style="font-size:.78rem;color:var(--gris);margin-bottom:1rem;">Gestion des enseignants, évaluateurs et de leurs droits d'accès.</p>
+
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
-          <span style="font-weight:800;color:var(--bleu);font-size:.9rem">👨‍🏫 Évaluateurs</span>
+          <span style="font-weight:800;color:var(--bleu);font-size:.9rem">👨‍🏫 Enseignants & Évaluateurs</span>
           <button class="btn btn-primary btn-sm" onclick="showAddUser()">➕ Ajouter</button>
         </div>
         <div id="usersList"><div class="alert al-info">Chargement...</div></div>
@@ -3240,12 +3240,15 @@ function logAdmin(action,detail=''){
 function renderUsers(){
   const c=document.getElementById('usersList');
   if(!c)return;
-  if(!users.length){c.innerHTML='<div class="alert al-info">Aucun évaluateur. Cliquez "Ajouter" pour en créer un.</div>';return;}
+  if(!users.length){c.innerHTML='<div class="alert al-info">Aucun enseignant. Cliquez "Ajouter" pour en créer un.</div>';return;}
+  const ROLE_LBL={'enseignant':'👨‍🏫 Enseignant','evaluateur':'📋 Évaluateur','les-deux':'👨‍🏫📋 Enseignant + Évaluateur'};
+  const ROLE_COLOR={'enseignant':'var(--bleu2)','evaluateur':'var(--teal)','les-deux':'var(--orange)'};
   c.innerHTML=users.map((u,i)=>{
+    const role=u.role||'les-deux';
     const classesStr=u.classes?.length?u.classes.join(', '):'<em style="color:var(--gris)">Aucune classe</em>';
-    return `<div style="display:flex;align-items:center;gap:.75rem;padding:.75rem;background:var(--gris2);border-radius:var(--r2);margin-bottom:.5rem;border-left:4px solid ${u.actif!==false?'var(--vert)':'var(--gris)'}">
+    return `<div style="display:flex;align-items:center;gap:.75rem;padding:.75rem;background:var(--gris2);border-radius:var(--r2);margin-bottom:.5rem;border-left:4px solid ${u.actif!==false?ROLE_COLOR[role]||'var(--vert)':'var(--gris)'}">
       <div style="flex:1">
-        <div style="font-weight:800;font-size:.9rem">${u.nom}</div>
+        <div style="font-weight:800;font-size:.9rem">${u.nom} <span class="badge" style="font-size:.6rem;background:${ROLE_COLOR[role]||'var(--gris)'};color:#fff;padding:.1rem .4rem;border-radius:4px">${ROLE_LBL[role]||role}</span></div>
         <div style="font-size:.72rem;color:var(--gris);font-family:'JetBrains Mono',monospace">${u.cle}</div>
         <div style="font-size:.7rem;color:var(--bleu2);margin-top:.2rem">📚 ${classesStr}</div>
       </div>
@@ -3299,8 +3302,15 @@ async function renderAdminBackups(){
 function showAddUser(){
   const cks=classes.map((cl,i)=>`<label style="display:flex;align-items:center;gap:.3rem;font-size:.8rem;cursor:pointer"><input type="checkbox" id="uc${i}" value="${cl}"> ${cl}</label>`).join('');
   const droitsCks=Object.entries(DROITS_LABELS).map(([k,lbl])=>`<label style="display:flex;align-items:center;gap:.3rem;font-size:.78rem;cursor:pointer"><input type="checkbox" id="ud_${k}" ${DROITS_DEFAUT[k]?'checked':''}> ${lbl}</label>`).join('');
-  showModal('➕ Nouvel évaluateur',`
+  showModal('➕ Nouvel enseignant / évaluateur',`
     <div class="fr"><label>Nom complet</label><input id="uNom" placeholder="J. Martin"></div>
+    <div class="fr" style="margin-top:.5rem"><label>Rôle</label>
+      <select id="uRole" style="padding:.5rem;border:2px solid var(--gris3);border-radius:var(--r2);font-size:.85rem;width:100%">
+        <option value="les-deux">👨‍🏫📋 Enseignant + Évaluateur</option>
+        <option value="enseignant">👨‍🏫 Enseignant uniquement (pas d'évaluation CCF)</option>
+        <option value="evaluateur">📋 Évaluateur uniquement (intervient pour les CCF)</option>
+      </select>
+    </div>
     <div style="margin-top:.75rem;font-size:.8rem;font-weight:800;color:var(--bleu)">📚 Classes assignées</div>
     <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.3rem">${cks}</div>
     <div style="margin-top:.75rem;font-size:.8rem;font-weight:800;color:var(--bleu)">🔐 Droits</div>
@@ -3314,7 +3324,8 @@ function doAddUser(){
   const userClasses=classes.filter((cl,i)=>document.getElementById('uc'+i)?.checked);
   const droits={};
   Object.keys(DROITS_DEFAUT).forEach(k=>{droits[k]=document.getElementById('ud_'+k)?.checked||false;});
-  users.push({nom,cle,classes:userClasses,droits,actif:true,cree:new Date().toISOString()});
+  const role=document.getElementById('uRole')?.value||'les-deux';
+  users.push({nom,cle,role,classes:userClasses,droits,actif:true,cree:new Date().toISOString()});
   saveAdminData();
   logAdmin('Création utilisateur',nom);
   closeModal();
@@ -3333,8 +3344,16 @@ function showEditUser(i){
   const u=users[i];if(!u)return;
   const cks=classes.map((cl,j)=>`<label style="display:flex;align-items:center;gap:.3rem;font-size:.8rem;cursor:pointer"><input type="checkbox" id="uce${j}" value="${cl}" ${u.classes?.includes(cl)?'checked':''}> ${cl}</label>`).join('');
   const droitsCks=Object.entries(DROITS_LABELS).map(([k,lbl])=>`<label style="display:flex;align-items:center;gap:.3rem;font-size:.78rem;cursor:pointer"><input type="checkbox" id="ude_${k}" ${u.droits?.[k]?'checked':''}> ${lbl}</label>`).join('');
+  const curRole=u.role||'les-deux';
   showModal(`✏️ ${u.nom}`,`
     <div class="fr"><label>Nom</label><input id="ueNom" value="${u.nom}"></div>
+    <div class="fr" style="margin-top:.5rem"><label>Rôle</label>
+      <select id="ueRole" style="padding:.5rem;border:2px solid var(--gris3);border-radius:var(--r2);font-size:.85rem;width:100%">
+        <option value="les-deux" ${curRole==='les-deux'?'selected':''}>👨‍🏫📋 Enseignant + Évaluateur</option>
+        <option value="enseignant" ${curRole==='enseignant'?'selected':''}>👨‍🏫 Enseignant uniquement</option>
+        <option value="evaluateur" ${curRole==='evaluateur'?'selected':''}>📋 Évaluateur uniquement</option>
+      </select>
+    </div>
     <div style="margin-top:.5rem;font-size:.75rem;color:var(--gris)">🔑 Clé : <code style="background:var(--gris2);padding:.15rem .4rem;border-radius:4px">${u.cle}</code></div>
     <div style="margin-top:.75rem;font-size:.8rem;font-weight:800;color:var(--bleu)">📚 Classes</div>
     <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.3rem">${cks}</div>
@@ -3346,6 +3365,7 @@ function showEditUser(i){
 function doEditUser(i){
   const u=users[i];if(!u)return;
   u.nom=document.getElementById('ueNom').value.trim()||u.nom;
+  u.role=document.getElementById('ueRole')?.value||u.role||'les-deux';
   u.classes=classes.filter((cl,j)=>document.getElementById('uce'+j)?.checked);
   u.droits={};
   Object.keys(DROITS_DEFAUT).forEach(k=>{u.droits[k]=document.getElementById('ude_'+k)?.checked||false;});
@@ -3373,7 +3393,7 @@ function doRegenKey(i){
 }
 function confirmDelUser(i){
   const u=users[i];if(!u)return;
-  showModal('🗑️ Supprimer',`<p>Supprimer l'évaluateur <strong>${u.nom}</strong> ?</p><div class="alert al-danger" style="margin-top:.5rem">⚠️ Action irréversible.</div>`,
+  showModal('🗑️ Supprimer',`<p>Supprimer <strong>${u.nom}</strong> ?</p><div class="alert al-danger" style="margin-top:.5rem">⚠️ Action irréversible.</div>`,
     `<button class="btn btn-rouge" onclick="doDelUser(${i})">Oui, supprimer</button><button class="btn btn-ghost" onclick="closeModal()">Annuler</button>`);
 }
 function doDelUser(i){

@@ -105,11 +105,13 @@
     if (!sel) return;
     var profName = (window.cfg && window.cfg.nomProf) || 'Moi';
     var html = '<option value="">' + profName + '</option>';
-    // Ajouter les autres évaluateurs (depuis admin)
-    var evaluateurs = window.users || [];
-    evaluateurs.forEach(function(ev) {
+    // Ajouter les autres enseignants/évaluateurs (depuis admin)
+    var allUsers = window.users || [];
+    allUsers.forEach(function(ev) {
       if (ev.nom && ev.nom !== profName && ev.actif !== false) {
-        html += '<option value="' + ev.nom + '">' + ev.nom + '</option>';
+        var role = ev.role || 'les-deux';
+        var tag = role === 'evaluateur' ? ' (éval.)' : role === 'enseignant' ? ' (ens.)' : '';
+        html += '<option value="' + ev.nom + '">' + ev.nom + tag + '</option>';
       }
     });
     sel.innerHTML = html;
