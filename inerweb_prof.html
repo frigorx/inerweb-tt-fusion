@@ -347,6 +347,7 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
     <div class="hdr-right">
       <div class="sync-pill" onclick="syncAll()"><span class="sync-dot syncing" id="syncDot"></span><span id="syncLbl">Sync...</span><span id="syncBadge" style="display:none;background:var(--orange);color:#fff;font-size:.65rem;font-weight:800;padding:.1rem .4rem;border-radius:10px;margin-left:.3rem;">0</span></div>
       <button class="btn btn-ghost btn-xs" onclick="showParamModal()">⚙️</button>
+      <button class="btn btn-ghost btn-xs" onclick="doLogout()" title="Déconnexion" style="font-size:.8rem">🚪</button>
     </div>
   </header>
 
@@ -910,7 +911,7 @@ const NV_LBL={NE:'Non Évalué',NA:'Non Acquis',EC:'En Cours',M:'Maîtrisé',PM:
 const NE_MOTIFS={'NE-ABS':'Élève absent lors de l\'évaluation','NE-IMP':'Conditions ne permettant pas l\'évaluation','NE-NON':'Compétence non travaillée','NE-REF':'Refus de l\'élève de réaliser la tâche'};
 
 /* ═══ [A2] ADMIN : DROITS ET ROLES ═══ */
-const ADMIN_KEY='IFCA-ADMIN-2026-MASTER';
+const ADMIN_KEYS=['IFCA-ADMIN-2026-MASTER','IFCA4-MMDU-GG7G-KX39'];
 const DROITS_DEFAUT={
   'classes.creer':false,'classes.modifier':false,
   'eleves.creer':true,'eleves.supprimer':false,
@@ -2799,6 +2800,17 @@ function updateParam(){
   cfg.nomProf=document.getElementById('pmNom').value.trim();cfg.baseUrl=document.getElementById('pmBase').value.trim();
   localStorage.setItem(SCFG,JSON.stringify(cfg));closeModal();toast('Paramètres enregistrés','ok');syncAll();
 }
+function doLogout(){
+  showModal('🚪 Déconnexion',`
+    <p style="margin-bottom:.5rem">Vous allez être déconnecté de cette session.</p>
+    <div class="alert al-warn" style="font-size:.8rem">Les données locales seront conservées. Vous pourrez vous reconnecter avec votre clé.</div>`,
+    `<button class="btn btn-rouge" onclick="confirmLogout()">🚪 Se déconnecter</button><button class="btn btn-ghost" onclick="closeModal()">Annuler</button>`);
+}
+function confirmLogout(){
+  localStorage.removeItem(SCFG);
+  closeModal();
+  location.reload();
+}
 function saveAppConfig(){
   appCfg.etablissement=document.getElementById('cEtab').value.trim();
   appCfg.ville=document.getElementById('cVille').value.trim();
@@ -2879,7 +2891,7 @@ function genUserKey(){
   return k;
 }
 function checkAdmin(){
-  isAdmin=(cfg.apiKey===ADMIN_KEY);
+  isAdmin=ADMIN_KEYS.indexOf(cfg.apiKey)!==-1;
   const nav=document.getElementById('navAdmin');
   if(nav)nav.style.display=isAdmin?'flex':'none';
   // Identifier l'utilisateur courant
