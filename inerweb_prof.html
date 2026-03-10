@@ -1830,6 +1830,7 @@ function renderEleves(){
       <div class="el-meta">${s.classe||'—'} · <span style="font-family:'JetBrains Mono',monospace;font-size:.65rem">${s.code}</span></div>
     </div>
     <div class="el-act">
+      <button class="btn btn-ghost btn-xs" onclick="if(window.activModule)activModule.showStudentHistory('${s.code}')" title="Historique activités">📋</button>
       <button class="btn btn-ghost btn-xs" onclick="showQR('${s.code}')">📱</button>
       <button class="btn btn-rouge btn-xs" onclick="confirmDel('${s.code}')">🗑️</button>
     </div>
