@@ -180,6 +180,25 @@ input, select, textarea, button { font-family:inherit; }
 .spinner-ov { position:fixed; inset:0; background:rgba(255,255,255,.8); z-index:300; display:none; align-items:center; justify-content:center; }
 .spinner-ov.active { display:flex; }
 .spinner { width:50px; height:50px; border:4px solid var(--gris3); border-top-color:var(--violet); border-radius:50%; animation:spin 1s linear infinite; }
+
+/* Calendrier élève */
+.ecal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; margin-bottom:.75rem; }
+.ecal-hdr { font-size:.6rem; font-weight:800; text-align:center; padding:.3rem 0; color:var(--gris); text-transform:uppercase; }
+.ecal-day { min-height:42px; background:#fff; border-radius:var(--r2); padding:.2rem; text-align:center; font-size:.7rem; font-weight:700; color:var(--texte); position:relative; cursor:pointer; transition:var(--t); border:2px solid transparent; }
+.ecal-day:hover { border-color:var(--violet); }
+.ecal-day.today { border-color:var(--orange); }
+.ecal-day.empty { background:transparent; cursor:default; border:none; }
+.ecal-day.has-act { background:var(--bleu3); }
+.ecal-dot { width:6px; height:6px; border-radius:50%; display:inline-block; margin:1px; }
+.ecal-dots { display:flex; justify-content:center; flex-wrap:wrap; gap:1px; margin-top:2px; }
+.act-card { background:#fff; border-radius:var(--r); padding:1rem; box-shadow:var(--ombre2); margin-bottom:.75rem; border-left:4px solid var(--bleu2); }
+.act-card-title { font-size:.85rem; font-weight:800; color:var(--bleu); margin-bottom:.25rem; }
+.act-card-meta { font-size:.72rem; color:var(--gris); margin-bottom:.5rem; }
+.act-doc { display:flex; align-items:center; gap:.5rem; padding:.4rem .6rem; background:var(--gris2); border-radius:var(--r2); margin-bottom:.25rem; cursor:pointer; transition:var(--t); }
+.act-doc:hover { background:var(--bleu3); }
+.copie-cachee { opacity:.5; cursor:not-allowed; }
+.copie-cachee:hover { background:var(--gris2); }
+.note-badge { display:inline-block; padding:.2rem .5rem; border-radius:var(--r2); font-size:.75rem; font-weight:800; }
 </style>
 </head>
 <body>
@@ -207,6 +226,17 @@ input, select, textarea, button { font-family:inherit; }
   </header>
 
   <div class="page active" id="page-home">
+    <!-- Accès rapide Journal + Photo -->
+    <div onclick="switchPage('journal')" style="background:linear-gradient(135deg,var(--violet),var(--bleu2));border-radius:var(--r);padding:1.25rem;margin-bottom:1rem;cursor:pointer;box-shadow:var(--ombre);display:flex;align-items:center;gap:1rem;color:#fff;transition:var(--t)">
+      <div style="font-size:3rem;flex-shrink:0">📸</div>
+      <div>
+        <div style="font-size:1.1rem;font-weight:900;margin-bottom:.15rem">Mon journal de stage</div>
+        <div style="font-size:.82rem;opacity:.9">Ajoute des photos et décris ta journée</div>
+        <div id="journalQuickStatus" style="font-size:.72rem;opacity:.8;margin-top:.3rem"></div>
+      </div>
+      <div style="font-size:1.5rem;margin-left:auto">▶</div>
+    </div>
+
     <div class="card">
       <div class="card-title">📊 Ma progression globale</div>
       <div class="progress-ring">
@@ -250,6 +280,19 @@ input, select, textarea, button { font-family:inherit; }
       <div class="comp-section-title ep3">⚡ EP3 — Mise en service et maintenance</div>
       <div class="comp-list" id="compListEP3"></div>
     </div>
+  </div>
+
+  <div class="page" id="page-calendrier">
+    <div class="card" style="padding:.75rem">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <button class="btn btn-ghost" onclick="ecalNav(-1)" style="padding:.4rem .6rem">◀</button>
+        <span id="ecalLabel" style="font-weight:800;font-size:.9rem;color:var(--bleu)"></span>
+        <button class="btn btn-ghost" onclick="ecalNav(1)" style="padding:.4rem .6rem">▶</button>
+      </div>
+    </div>
+    <div id="ecalGrid" class="ecal-grid"></div>
+    <div id="ecalDetail"></div>
+    <div id="ecalNotes" style="margin-top:.75rem"></div>
   </div>
 
   <div class="page" id="page-docs">
@@ -316,7 +359,8 @@ input, select, textarea, button { font-family:inherit; }
 
   <nav class="bottom-nav">
     <button class="nav-item active" data-page="home" onclick="switchPage('home')"><span class="nav-ico">🏠</span><span class="nav-lbl">Accueil</span></button>
-    <button class="nav-item" data-page="progress" onclick="switchPage('progress')"><span class="nav-ico">📊</span><span class="nav-lbl">Progression</span></button>
+    <button class="nav-item" data-page="progress" onclick="switchPage('progress')"><span class="nav-ico">📊</span><span class="nav-lbl">Compétences</span></button>
+    <button class="nav-item" data-page="calendrier" onclick="switchPage('calendrier')"><span class="nav-ico">📅</span><span class="nav-lbl">Calendrier</span></button>
     <button class="nav-item" data-page="docs" onclick="switchPage('docs')"><span class="nav-ico">📁</span><span class="nav-lbl">Documents</span></button>
     <button class="nav-item" data-page="journal" onclick="switchPage('journal')"><span class="nav-ico">📓</span><span class="nav-lbl">Journal</span></button>
   </nav>
@@ -337,7 +381,7 @@ const NV_LBL={NE:'Non Évalué',NA:'Non Acquis',EC:'En Cours',M:'Maîtrisé',PM:
 const TYPE_LBL={activite:'🔧 Activité',observation:'👁️ Observation',question:'❓ Question',reflexion:'💭 Réflexion'};
 
 let cfg={apiUrl:'',token:''};
-let eleve=null,journal=[],evals={},pendingPhotos=[],sharedDocs=[],eleveDocs=[];
+let eleve=null,journal=[],evals={},pendingPhotos=[],sharedDocs=[],eleveDocs=[],activites=[],eleveNotes={},copiesCachees=[];
 const SK='inerweb-eleve-v2',MAX_PHOTOS_DAY=10,MAX_PHOTO_SIZE=200*1024;
 
 function toast(msg,type='inf'){const c=document.getElementById('toastC'),t=document.createElement('div');t.className='toast '+type;t.textContent=msg;c.appendChild(t);setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),300);},3000);}
@@ -485,9 +529,10 @@ function switchPage(page){
   document.getElementById('page-'+page).classList.add('active');
   document.querySelector(`.nav-item[data-page="${page}"]`).classList.add('active');
   if(page==='journal')updatePhotoCounter();
+  if(page==='calendrier')renderCalendrier();
 }
 
-function renderAll(){renderHeader();renderHome();renderProgress();renderJournal();renderDocsEleve();updatePhotoCounter();}
+function renderAll(){renderHeader();renderHome();renderProgress();renderCalendrier();renderJournal();renderDocsEleve();updatePhotoCounter();}
 function renderHeader(){document.getElementById('hdrName').textContent=`${eleve.prenom||''} ${eleve.nom||''}`.trim()||'—';document.getElementById('hdrClass').textContent=eleve.classe||'—';}
 
 function renderHome(){
@@ -500,6 +545,14 @@ function renderHome(){
   document.getElementById('ringEP2').style.setProperty('--pct',pctEP2);document.getElementById('pctEP2').textContent=pctEP2+'%';
   document.getElementById('ringEP3').style.setProperty('--pct',pctEP3);document.getElementById('pctEP3').textContent=pctEP3+'%';
   renderStageStatus();
+  // Statut rapide journal
+  const qs=document.getElementById('journalQuickStatus');
+  if(qs){
+    const todayEntries=journal.filter(j=>(j.date||'').slice(0,10)===todayISO());
+    const totalPhotos=journal.reduce((a,j)=>a+(j.photos?.length||0),0);
+    if(todayEntries.length)qs.textContent=`✅ ${todayEntries.length} entrée(s) aujourd'hui · ${totalPhotos} photos au total`;
+    else qs.textContent=`⚠️ Pas encore d'entrée aujourd'hui · ${journal.length} entrées · ${totalPhotos} photos`;
+  }
 }
 
 function renderStageStatus(){
@@ -519,6 +572,142 @@ function renderProgress(){
 }
 
 function compItem(comp,niv,ep){const nivClass='niv-'+niv.toLowerCase();return`<div class="comp-item ${ep}"><span class="comp-code">${comp.code}</span><span class="comp-nom">${comp.nom}</span><span class="comp-niv ${nivClass}">${NV_LBL[niv]||niv}</span></div>`;}
+
+/* ═══ CALENDRIER & ACTIVITÉS ═══ */
+const TYPE_ACT_LBL={TP:'🔧 TP',TD:'📐 TD',cours:'📖 Cours',interro:'📝 Interro',eval:'🎯 Évaluation'};
+const EP_COLORS={EP1:'#e67e22',EP2:'#2d5a8c','EP3-A':'#9b59b6','EP3-B':'#3498db','EP3-C':'#1abc9c',MIXTE:'#555'};
+let ecalMonth=new Date().getMonth(),ecalYear=new Date().getFullYear();
+
+function ecalNav(dir){ecalMonth+=dir;if(ecalMonth>11){ecalMonth=0;ecalYear++;}if(ecalMonth<0){ecalMonth=11;ecalYear--;}renderCalendrier();}
+
+function renderCalendrier(){
+  const label=document.getElementById('ecalLabel');
+  const grid=document.getElementById('ecalGrid');
+  const detail=document.getElementById('ecalDetail');
+  const notesDiv=document.getElementById('ecalNotes');
+  if(!label)return;
+  const mois=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  label.textContent=mois[ecalMonth]+' '+ecalYear;
+  const jours=['L','M','M','J','V','S','D'];
+  const first=new Date(ecalYear,ecalMonth,1);
+  const lastDay=new Date(ecalYear,ecalMonth+1,0).getDate();
+  let dow=first.getDay();if(dow===0)dow=7; dow--;
+  const todayStr=todayISO();
+  // Index des activités par date
+  const actByDate={};
+  activites.forEach(a=>{if(a.date){if(!actByDate[a.date])actByDate[a.date]=[];actByDate[a.date].push(a);}});
+  // Index du journal par date
+  const jByDate={};
+  journal.forEach(j=>{const d=(j.date||'').slice(0,10);if(d){if(!jByDate[d])jByDate[d]=[];jByDate[d].push(j);}});
+
+  let html=jours.map(j=>`<div class="ecal-hdr">${j}</div>`).join('');
+  for(let i=0;i<dow;i++)html+='<div class="ecal-day empty"></div>';
+  for(let d=1;d<=lastDay;d++){
+    const ds=ecalYear+'-'+String(ecalMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const acts=actByDate[ds]||[];
+    const jEntries=jByDate[ds]||[];
+    const isToday=ds===todayStr;
+    const hasContent=acts.length||jEntries.length;
+    const dots=acts.map(a=>{const col=EP_COLORS[a.epreuve]||'#555';return `<span class="ecal-dot" style="background:${col}"></span>`;}).join('');
+    const jDot=jEntries.length?'<span class="ecal-dot" style="background:var(--violet)"></span>':'';
+    html+=`<div class="ecal-day${isToday?' today':''}${hasContent?' has-act':''}" onclick="ecalShowDay('${ds}')">
+      <div>${d}</div>
+      <div class="ecal-dots">${dots}${jDot}</div>
+    </div>`;
+  }
+  grid.innerHTML=html;
+
+  // Notes de l'élève
+  const n2=eleveNotes.EP2||{},n3=eleveNotes.EP3||{};
+  let notesHtml='';
+  if(n2.note||n3.note){
+    notesHtml='<div class="card"><div class="card-title">📊 Mes notes</div>';
+    if(n2.note)notesHtml+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:.4rem 0;border-bottom:1px solid var(--gris3)"><span style="font-weight:700;color:var(--ep2)">EP2 — Réalisation</span><span class="note-badge" style="background:var(--bleu3);color:var(--ep2)">${n2.note}/20</span></div>`;
+    if(n3.note)notesHtml+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:.4rem 0"><span style="font-weight:700;color:var(--ep3)">EP3 — Mise en service</span><span class="note-badge" style="background:var(--violet2);color:var(--ep3)">${n3.note}/20</span></div>`;
+    notesHtml+='</div>';
+  }
+  notesDiv.innerHTML=notesHtml;
+  // Afficher le jour courant par défaut
+  if(!detail.innerHTML)ecalShowDay(todayStr);
+}
+
+function ecalShowDay(ds){
+  const c=document.getElementById('ecalDetail');
+  const acts=activites.filter(a=>a.date===ds);
+  const jEntries=journal.filter(j=>(j.date||'').slice(0,10)===ds);
+  const parts=ds.split('-');
+  const jours=['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+  const dt=new Date(parseInt(parts[0]),parseInt(parts[1])-1,parseInt(parts[2]));
+  const jourNom=jours[dt.getDay()];
+  const mois=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+  const dateLbl=jourNom+' '+parseInt(parts[2])+' '+mois[parseInt(parts[1])-1]+' '+parts[0];
+
+  if(!acts.length&&!jEntries.length){
+    c.innerHTML=`<div class="card" style="text-align:center;color:var(--gris);padding:1.5rem"><div style="font-size:.8rem;font-weight:700;margin-bottom:.5rem">${dateLbl}</div><div style="font-size:1.5rem;margin-bottom:.3rem">📭</div><div style="font-size:.82rem">Rien ce jour-là</div></div>`;
+    return;
+  }
+
+  let html=`<div style="font-size:.8rem;font-weight:800;color:var(--bleu);margin-bottom:.5rem;text-transform:capitalize">${dateLbl}</div>`;
+
+  // Activités
+  acts.forEach(a=>{
+    const typeLbl=TYPE_ACT_LBL[a.type]||a.type||'';
+    const epColor=EP_COLORS[a.epreuve]||'#555';
+    html+=`<div class="act-card" style="border-left-color:${epColor}">
+      <div class="act-card-title">${typeLbl} ${a.titre||''}</div>
+      <div class="act-card-meta">${a.epreuve||''} · ${(a.competences||[]).length} compétence(s)</div>`;
+    // Documents élève
+    if(a.docsEleve&&a.docsEleve.length){
+      html+='<div style="font-size:.72rem;font-weight:700;color:var(--bleu);margin:.4rem 0 .2rem">📎 Documents :</div>';
+      a.docsEleve.forEach((d,i)=>{
+        const ico=EXT_ICO[(d.name||'').split('.').pop().toLowerCase()]||'📄';
+        html+=`<div class="act-doc" onclick="telechargerActDoc(${activites.indexOf(a)},${i})">
+          <span>${ico}</span><span style="flex:1;font-size:.8rem;font-weight:600">${d.name||'Document '+(i+1)}</span><span style="color:var(--teal)">⬇️</span>
+        </div>`;
+      });
+    }
+    html+='</div>';
+  });
+
+  // Entrées journal
+  if(jEntries.length){
+    html+='<div style="font-size:.72rem;font-weight:700;color:var(--violet);margin:.5rem 0 .3rem">📓 Journal :</div>';
+    jEntries.forEach(j=>{
+      html+=`<div style="background:var(--violet2);border-radius:var(--r2);padding:.5rem .6rem;margin-bottom:.3rem;border-left:3px solid var(--violet)">
+        <div style="font-size:.7rem;color:var(--gris)">${timeHM(j.date)} <span style="background:var(--violet);color:#fff;padding:.1rem .3rem;border-radius:4px;font-size:.6rem;font-weight:700">${TYPE_LBL[j.type]||j.type}</span></div>
+        ${j.text?`<div style="font-size:.82rem;margin-top:.2rem">${j.text}</div>`:''}
+        ${j.photos&&j.photos.length?`<div style="display:flex;gap:.3rem;margin-top:.3rem;flex-wrap:wrap">${j.photos.map(p=>`<img src="${p}" style="width:48px;height:48px;object-fit:cover;border-radius:4px;cursor:pointer" onclick="openPhotoModal('${p}')">`).join('')}</div>`:''}
+      </div>`;
+    });
+  }
+
+  // Copies cachées (prof only)
+  const cachedForDay=copiesCachees.filter(d=>d.date&&d.date.slice(0,10)===ds);
+  if(cachedForDay.length){
+    html+='<div style="font-size:.72rem;font-weight:700;color:var(--gris);margin:.5rem 0 .2rem">🔒 Documents réservés prof :</div>';
+    cachedForDay.forEach(d=>{
+      html+=`<div class="act-doc copie-cachee"><span>🔒</span><span style="flex:1;font-size:.78rem;font-weight:600;color:var(--gris)">${d.nom}</span><span style="font-size:.65rem;color:var(--gris);font-style:italic">Accès enseignant</span></div>`;
+    });
+  }
+
+  c.innerHTML=html;
+}
+
+function telechargerActDoc(actIdx,docIdx){
+  const act=activites[actIdx];
+  if(!act||!act.docsEleve||!act.docsEleve[docIdx])return;
+  const d=act.docsEleve[docIdx];
+  const a=document.createElement('a');
+  a.href=d.dataUrl||d.data;a.download=d.name||'document';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
+
+function openPhotoModal(src){
+  const m=document.getElementById('photoModal');
+  document.getElementById('photoModalImg').src=src;
+  m.classList.add('active');
+}
+function closePhotoModal(){document.getElementById('photoModal').classList.remove('active');}
 
 /* ═══ DOCUMENTS ═══ */
 const DOC_CAT_ICO={convention:'📋','rapport-type':'📝',support:'📊',guide:'📖',autre:'📎',rapport:'📝'};
@@ -639,6 +828,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       const pd=JSON.parse(sessionStorage.getItem('inerwebPreview')||'null');
       if(pd&&pd.eleve){
         eleve=pd.eleve;evals=pd.evals||{};journal=pd.journal||[];sharedDocs=pd.sharedDocs||[];
+        activites=pd.activites||[];eleveNotes=pd.notes||{};copiesCachees=pd.copiesCachees||[];
         startApp();
         toast('Mode aperçu (vue prof)','ok');
         return;

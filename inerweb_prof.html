@@ -693,13 +693,18 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
               </select>
             </div>
             <div class="fr"><label>Visible par</label>
-              <select id="docVisibilite" style="padding:.5rem;border:2px solid var(--gris3);border-radius:var(--r2);font-size:.85rem;width:100%">
+              <select id="docVisibilite" onchange="toggleDocEleve()" style="padding:.5rem;border:2px solid var(--gris3);border-radius:var(--r2);font-size:.85rem;width:100%">
                 <option value="tous">Élèves + Tuteurs</option>
                 <option value="eleves">Élèves uniquement</option>
                 <option value="tuteurs">Tuteurs uniquement</option>
-                <option value="profs">Profs uniquement</option>
+                <option value="profs">Profs uniquement (copie cachée)</option>
               </select>
             </div>
+          </div>
+          <div class="fr" id="docEleveWrap" style="margin-bottom:.75rem;display:none"><label>Rattacher à un élève (copie CCF, copie cachée...)</label>
+            <select id="docEleveCode" style="padding:.5rem;border:2px solid var(--gris3);border-radius:var(--r2);font-size:.85rem;width:100%">
+              <option value="">— Aucun (document global) —</option>
+            </select>
           </div>
           <div class="fr" style="margin-bottom:.75rem"><label>Nom du document (optionnel)</label>
             <input type="text" id="docNom" placeholder="Laisser vide = nom du fichier" style="padding:.5rem;border:2px solid var(--gris3);border-radius:var(--r2);font-size:.85rem;width:100%">
@@ -2310,6 +2315,15 @@ const DOC_CAT_LABELS={convention:'📋 Convention',  'rapport-type':'📝 Rappor
 const DOC_VIS_LABELS={tous:'Élèves + Tuteurs', eleves:'Élèves', tuteurs:'Tuteurs', profs:'Profs'};
 const DOC_VIS_COLORS={tous:'var(--teal)', eleves:'var(--violet)', tuteurs:'var(--bleu2)', profs:'var(--orange)'};
 
+function toggleDocEleve(){
+  const vis=document.getElementById('docVisibilite').value;
+  const wrap=document.getElementById('docEleveWrap');
+  wrap.style.display=vis==='profs'?'':'none';
+  if(vis==='profs'){
+    const sel=document.getElementById('docEleveCode');
+    sel.innerHTML='<option value="">— Aucun (document global) —</option>'+students.map(s=>`<option value="${s.code}">${s.nom} ${s.prenom||''}</option>`).join('');
+  }
+}
 function docFileSelected(input){
   const info=document.getElementById('docFileInfo');
   if(input.files.length){
@@ -2327,6 +2341,7 @@ function ajouterDocument(){
   const cat=document.getElementById('docCategorie').value;
   const vis=document.getElementById('docVisibilite').value;
   const nom=document.getElementById('docNom').value.trim()||f.name;
+  const eleveCode=(vis==='profs'?document.getElementById('docEleveCode')?.value:'')||'';
   const reader=new FileReader();
   reader.onload=e=>{
     const doc={
@@ -2335,6 +2350,7 @@ function ajouterDocument(){
       filename:f.name,
       categorie:cat,
       visibilite:vis,
+      eleveCode:eleveCode,
       type:f.type,
       taille:f.size,
       dataUrl:e.target.result,
@@ -2392,7 +2408,7 @@ function renderSharedDocs(){
           <span style="font-size:1.3rem">${ico}</span>
           <div style="flex:1;min-width:0">
             <div style="font-size:.82rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.nom}</div>
-            <div style="font-size:.68rem;color:var(--gris)">${sz} · ${dt} · <span style="color:${DOC_VIS_COLORS[d.visibilite]||'var(--gris)'};font-weight:700">${DOC_VIS_LABELS[d.visibilite]||d.visibilite}</span></div>
+            <div style="font-size:.68rem;color:var(--gris)">${sz} · ${dt} · <span style="color:${DOC_VIS_COLORS[d.visibilite]||'var(--gris)'};font-weight:700">${DOC_VIS_LABELS[d.visibilite]||d.visibilite}</span>${d.eleveCode?` · 👤 ${(students.find(s=>s.code===d.eleveCode)||{}).nom||d.eleveCode}`:''}</div>
           </div>
           <button class="btn btn-ghost btn-xs" onclick="telechargerDoc('${d.id}')" title="Télécharger">⬇️</button>
           <button class="btn btn-rouge btn-xs" onclick="supprimerDoc('${d.id}')" title="Supprimer">🗑️</button>
@@ -2743,11 +2759,27 @@ function previewPageEleve(code){
   if(!s){toast('Élève introuvable','err');return;}
   // Stocker les données élève dans sessionStorage pour le mode preview
   const docsEleve=sharedDocs.filter(d=>d.visibilite==='tous'||d.visibilite==='eleves');
+  // Activités de cet élève (avec docs élève, sans docs prof)
+  const eleveActivites=((appCfg.activites||[]).filter(a=>a.eleves&&a.eleves.indexOf(code)!==-1)).map(a=>({
+    id:a.id,titre:a.titre,date:a.date,type:a.type,epreuve:a.epreuve,
+    competences:a.competences||[],
+    docsEleve:a.docsEleve||[],
+    avecCorrection:a.avecCorrection||false
+  }));
+  // Notes EP2/EP3
+  const eleveNotes=notes[code]||{};
+  // Copies cachées (visibilité prof uniquement, l'élève sait qu'elles existent mais ne peut pas les ouvrir)
+  const copiesCachees=sharedDocs.filter(d=>d.visibilite==='profs'&&d.eleveCode===code).map(d=>({
+    id:d.id,nom:d.nom,categorie:d.categorie,date:d.date,taille:d.taille,filename:d.filename
+  }));
   const previewData={
     eleve:{code:s.code,nom:s.nom,prenom:s.prenom,classe:s.classe,entreprise_nom:s.entreprise_nom||'',tuteur_nom:s.tuteur_nom||'',pfmp_debut:s.pfmp_debut||'',pfmp_fin:s.pfmp_fin||''},
     evals:_buildEvals(code),
     journal:(pfmpData[code]||{}).journal||[],
-    sharedDocs:docsEleve
+    sharedDocs:docsEleve,
+    activites:eleveActivites,
+    notes:eleveNotes,
+    copiesCachees:copiesCachees
   };
   sessionStorage.setItem('inerwebPreview',JSON.stringify(previewData));
   const base=location.href.replace(/[^/]*$/,'');
