@@ -2765,9 +2765,31 @@ function confirmPurge(){
 
 /* ═══ [K] CONFIG APP ═══ */
 function showParamModal(){
-  showModal('⚙️ Connexion API',`
+  const pageUrl=cfg.baseUrl||location.href.replace(/[^/]*$/,'');
+  showModal('⚙️ Ma session',`
+    <div class="card" style="background:var(--bleu3);margin-bottom:.75rem;border-left:4px solid var(--bleu)">
+      <div style="font-weight:800;color:var(--bleu);margin-bottom:.4rem;font-size:.85rem">🔑 Mes identifiants de connexion</div>
+      <div style="font-size:.75rem;color:#555;margin-bottom:.5rem">Pour vous connecter depuis un autre poste, saisissez ces informations sur l'écran d'accueil :</div>
+      <div style="display:flex;flex-direction:column;gap:.3rem;font-size:.78rem">
+        <div style="display:flex;align-items:center;gap:.3rem">
+          <strong style="min-width:60px">Clé :</strong>
+          <code style="background:#fff;padding:.2rem .5rem;border-radius:4px;font-family:monospace;flex:1;font-size:.8rem">${cfg.apiKey||'—'}</code>
+          <button class="btn btn-ghost btn-xs" onclick="navigator.clipboard.writeText('${cfg.apiKey||''}');toast('Clé copiée','ok')" style="font-size:.65rem">📋</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:.3rem">
+          <strong style="min-width:60px">Prof :</strong>
+          <span>${cfg.nomProf||'—'}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:.3rem">
+          <strong style="min-width:60px">Page :</strong>
+          <code style="background:#fff;padding:.2rem .5rem;border-radius:4px;font-size:.65rem;word-break:break-all;flex:1">${pageUrl}inerweb_prof.html</code>
+          <button class="btn btn-ghost btn-xs" onclick="navigator.clipboard.writeText('${pageUrl}inerweb_prof.html');toast('URL copiée','ok')" style="font-size:.65rem">📋</button>
+        </div>
+      </div>
+    </div>
+    <div style="font-weight:700;font-size:.8rem;color:var(--gris);margin-bottom:.3rem">Modifier les paramètres</div>
     <div class="fr"><label>URL API</label><input id="pmUrl" value="${cfg.apiUrl||''}"></div>
-    <div class="fr" style="margin-top:.5rem"><label>Clé maître</label><input type="password" id="pmKey" value="${cfg.apiKey||''}"></div>
+    <div class="fr" style="margin-top:.5rem"><label>Clé maître</label><input id="pmKey" value="${cfg.apiKey||''}"></div>
     <div class="fr" style="margin-top:.5rem"><label>Votre nom</label><input id="pmNom" value="${cfg.nomProf||''}"></div>
     <div class="fr" style="margin-top:.5rem"><label>URL GitHub Pages</label><input id="pmBase" value="${cfg.baseUrl||''}"></div>`,
     `<button class="btn btn-primary" onclick="updateParam()">💾 Enregistrer</button><button class="btn btn-ghost" onclick="closeModal()">Annuler</button>`);
