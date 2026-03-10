@@ -436,14 +436,53 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
     <!-- ACTIVITÉS PÉDAGOGIQUES -->
     <div class="tab-pane" id="tab-activites"><div class="tab-inner">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.75rem;">
-        <span style="font-weight:800;color:var(--bleu);font-size:.9rem">📋 Activités pédagogiques</span>
-        <div style="display:flex;gap:.4rem;">
-          <span id="phaseToggleActivites"></span>
-          <button class="btn btn-primary btn-sm" onclick="if(window.tpManager)tpManager.openCreate();else if(window.activModule)activModule.showCreateModal()">➕ Nouveau TP</button>
-        </div>
+        <span style="font-weight:800;color:var(--bleu);font-size:.9rem">📋 Bibliothèque de TP</span>
+        <button class="btn btn-primary btn-sm" onclick="tpManager.showCreate()">➕ Créer un TP</button>
       </div>
-      <div id="activiteStats" style="display:flex;gap:.5rem;margin-bottom:.75rem;flex-wrap:wrap;"></div>
-      <div id="activitesList"></div>
+      <!-- Vue liste des TP -->
+      <div id="tpListView">
+        <div id="activitesList"></div>
+      </div>
+      <!-- Vue création TP (même style que EP2/EP3) -->
+      <div id="tpCreateView" style="display:none">
+        <div style="margin-bottom:.6rem">
+          <button class="btn btn-ghost btn-sm" onclick="tpManager.backToList()">← Retour à la liste</button>
+        </div>
+        <!-- Étape 1 : Config du TP -->
+        <div class="card" style="margin-bottom:.75rem">
+          <div style="font-weight:800;color:var(--bleu);margin-bottom:.5rem">📝 Informations du TP</div>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.5rem">
+            <input id="tpTitre" type="text" placeholder="Nom du TP (ex: Brasage atelier S12)" style="flex:2;min-width:200px;padding:.4rem .6rem;border:2px solid var(--gris3);border-radius:8px;font-size:.85rem">
+            <input id="tpDate" type="date" style="padding:.4rem .6rem;border:2px solid var(--gris3);border-radius:8px;font-size:.85rem">
+          </div>
+          <div style="font-weight:700;font-size:.82rem;margin-bottom:.3rem">Épreuve</div>
+          <div id="tpEprBtns" style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.5rem"></div>
+        </div>
+        <!-- Étape 2 : Sélection élèves (même style que EP2) -->
+        <div class="card" style="margin-bottom:.75rem">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+            <span style="font-weight:800;color:var(--bleu)">👥 Élèves</span>
+            <div style="display:flex;gap:.3rem">
+              <button class="btn btn-ghost btn-xs" onclick="tpManager.toggleAllEleves()">Tout cocher</button>
+              <span id="tpElvCount" style="font-size:.78rem;color:var(--gris);padding:.2rem .4rem">(0)</span>
+            </div>
+          </div>
+          <div id="tpElevesGrid" style="display:flex;flex-wrap:wrap;gap:.3rem"></div>
+        </div>
+        <!-- Étape 3 : Compétences (même rendu que compBlock) -->
+        <div class="card" style="margin-bottom:.75rem">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem">
+            <span style="font-weight:800;color:var(--bleu)">🎯 Compétences à évaluer</span>
+            <div style="display:flex;gap:.3rem">
+              <button class="btn btn-ghost btn-xs" onclick="tpManager.toggleAllComps()">Tout cocher</button>
+              <span id="tpCompCount" style="font-size:.78rem;color:var(--gris);padding:.2rem .4rem">(0)</span>
+            </div>
+          </div>
+          <div id="tpCompsGrid"></div>
+        </div>
+        <!-- Bouton créer -->
+        <button class="btn btn-primary" onclick="tpManager.submit()" style="width:100%;padding:.7rem;font-size:.9rem;font-weight:700">✅ Créer et enregistrer le TP</button>
+      </div>
     </div></div>
 
     <!-- STAGE -->
