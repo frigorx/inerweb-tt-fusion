@@ -2137,7 +2137,7 @@ function renderComm(){
   const msg=document.getElementById('msgTpl')?.value||'';
   if(!students.length){c.innerHTML='<div class="alert al-info">Aucun élève chargé</div>';return;}
   c.innerHTML=students.map(s=>{
-    const tutUrl=`${cfg.baseUrl||''}inerweb_tuteur.html?eleve=${s.code}&tuteur=${s.token_tuteur||''}`;
+    const tutUrl=`${cfg.baseUrl||''}inerweb_tuteur.html?eleve=${s.code}&tuteur=${s.token_tuteur||''}&role=tuteur`;
     const m=msg.replace('[lien tuteur]',tutUrl);
     return `<div style="display:flex;align-items:center;gap:.5rem;padding:.5rem;background:var(--gris2);border-radius:var(--r2);margin-bottom:.3rem;">
       <div style="flex:1"><div style="font-weight:700;font-size:.8rem">${s.nom} ${s.prenom||''}</div><div style="font-size:.65rem;color:var(--gris)">${s.tuteur_nom||'Tuteur non défini'}</div></div>
@@ -2150,17 +2150,33 @@ function renderComm(){
 /* ═══ [H] BILAN ═══ */
 function calcNote(code,ep){
   const comps=ep==='EP2'?COMP_EP2:COMP_EP3;
+  const validees=notes[code]?.[ep]?.validees||{};
   let tot=0,max=0;
   const det=comps.map(c=>{
-    const lv=getLv(code,ep,c.code)||'NE';
     const coef=c.obl?COEF_OBL:1;
-    const pts=Math.round((NV_PCT[lv]||0)*c.poids*coef)/100;
     const mx=c.poids*coef;
-    tot+=pts;max+=mx;
-    return{code:c.code,nom:c.nom,obl:c.obl,lv,pts:pts.toFixed(1),max:mx.toFixed(1)};
+    const isVal=!!validees[c.code];
+    const val=isVal?mx:0;
+    tot+=val;max+=mx;
+    const lv=getLv(code,ep,c.code)||'NE';
+    return{code:c.code,nom:c.nom,obl:c.obl,lv,validee:isVal,pts:val.toFixed(1),max:mx.toFixed(1)};
   });
   const note=max?Math.round(tot/max*20*10)/10:0;
   return{note,elig:note>=10,det,tot:tot.toFixed(1),max:max.toFixed(1)};
+}
+function toggleCompVal(ep,compCode){
+  if(!cur)return;
+  if(notes[cur]?.[ep]?.cloture){toast('Épreuve clôturée','err');return;}
+  if(!notes[cur])notes[cur]={};
+  if(!notes[cur][ep])notes[cur][ep]={};
+  if(!notes[cur][ep].validees)notes[cur][ep].validees={};
+  if(notes[cur][ep].validees[compCode]){
+    delete notes[cur][ep].validees[compCode];
+  }else{
+    notes[cur][ep].validees[compCode]=true;
+  }
+  saveLocal();
+  renderBilan();
 }
 /* ═══ [H-bis] RAPPORT DE STAGE ═══ */
 let rapportData={};// {code: {pfmp1:{...}, pfmp2:{...}}}
@@ -2170,6 +2186,7 @@ const CRIT_RAPPORT_PRO=[
   {key:"technique",   lbl:"Vocabulaire technique",   sub:"Utilisation correcte des termes du métier"},
   {key:"illustrations",lbl:"Illustrations",          sub:"Photos, schémas, croquis commentés"},
   {key:"reflexion",   lbl:"Lien avec la formation",  sub:"Rapport entre les activités et le référentiel"},
+  {key:"rendu_compte", lbl:"Rendre compte",           sub:"Régularité du journal de stage, photos quotidiennes, respect des consignes de suivi"},
 ];
 const CRIT_RAPPORT_FR={
   total:20,
@@ -2459,14 +2476,7 @@ function renderBilan(){
         <div class="bn-sub">${e2.tot} pts / ${e2.max}</div>
         <div style="font-size:.72rem;margin:.3rem 0;color:${e2.elig?'var(--vert)':'var(--rouge)'};">${e2.elig?'✅ Éligible':'⚠️ Non éligible'}</div>
         ${n2.cloture?'<div style="font-size:.65rem;background:var(--vert2);color:var(--vert);border-radius:6px;padding:.2rem .5rem;font-weight:700">🔒 Clôturé</div>':''}
-        <div style="margin-top:.6rem">
-          <div style="font-size:.7rem;font-weight:700;color:var(--gris);margin-bottom:.25rem">Note jury :</div>
-          <div style="display:flex;align-items:center;gap:.4rem;justify-content:center">
-            <input type="number" id="nfEP2" min="0" max="20" step="0.5" value="${n2.note_finale!=null?n2.note_finale:''}" placeholder="${e2.note}" ${n2.cloture?'disabled':''} style="width:60px;text-align:center;font-size:1rem;font-weight:800;padding:.3rem;border:2px solid var(--gris3);border-radius:var(--r2);">
-            <span style="font-size:.7rem">/20</span>
-            <button class="btn btn-primary btn-xs" onclick="valNote('EP2')" ${n2.cloture?'disabled':''}>✅</button>
-          </div>
-        </div>
+        <div style="font-size:.68rem;color:var(--gris);margin-top:.4rem">${Object.keys(n2.validees||{}).length} / ${COMP_EP2.length} compétences validées</div>
       </div>
       <div class="bn-card" style="border-top:4px solid var(--ep3)">
         <div class="bn-lbl" style="color:var(--ep3)">EP3 — Entretien (coeff. 4)</div>
@@ -2474,18 +2484,11 @@ function renderBilan(){
         <div class="bn-sub">${e3.tot} pts / ${e3.max}</div>
         <div style="font-size:.72rem;margin:.3rem 0;color:${e3.elig?'var(--vert)':'var(--rouge)'};">${e3.elig?'✅ Éligible':'⚠️ Non éligible'}</div>
         ${n3.cloture?'<div style="font-size:.65rem;background:var(--vert2);color:var(--vert);border-radius:6px;padding:.2rem .5rem;font-weight:700">🔒 Clôturé</div>':''}
-        <div style="margin-top:.6rem">
-          <div style="font-size:.7rem;font-weight:700;color:var(--gris);margin-bottom:.25rem">Note jury :</div>
-          <div style="display:flex;align-items:center;gap:.4rem;justify-content:center">
-            <input type="number" id="nfEP3" min="0" max="20" step="0.5" value="${n3.note_finale!=null?n3.note_finale:''}" placeholder="${e3.note}" ${n3.cloture?'disabled':''} style="width:60px;text-align:center;font-size:1rem;font-weight:800;padding:.3rem;border:2px solid var(--gris3);border-radius:var(--r2);">
-            <span style="font-size:.7rem">/20</span>
-            <button class="btn btn-violet btn-xs" onclick="valNote('EP3')" ${n3.cloture?'disabled':''}>✅</button>
-          </div>
-        </div>
+        <div style="font-size:.68rem;color:var(--gris);margin-top:.4rem">${Object.keys(n3.validees||{}).length} / ${COMP_EP3.length} compétences validées</div>
       </div>
     </div>
-    <div style="font-size:.75rem;font-weight:800;color:var(--ep2);margin-bottom:.35rem">Détail EP2</div>${bilanTable(e2.det)}
-    <div style="font-size:.75rem;font-weight:800;color:var(--ep3);margin:.75rem 0 .35rem">Détail EP3</div>${bilanTable(e3.det)}
+    <div style="font-size:.75rem;font-weight:800;color:var(--ep2);margin-bottom:.35rem">Détail EP2 — cochez ✅ pour valider manuellement chaque compétence</div>${bilanTable(e2.det,'EP2',cur,n2.cloture)}
+    <div style="font-size:.75rem;font-weight:800;color:var(--ep3);margin:.75rem 0 .35rem">Détail EP3</div>${bilanTable(e3.det,'EP3',cur,n3.cloture)}
     <div class="cloture-bar">
       ${n2.cloture?`<button class="btn btn-ghost btn-sm" onclick="devrouille('EP2')">🔓 Déverrouiller EP2</button>`:`<button class="btn btn-vert btn-sm" onclick="cloture('EP2')">🔒 Clôturer EP2</button>`}
       ${n3.cloture?`<button class="btn btn-ghost btn-sm" onclick="devrouille('EP3')">🔓 Déverrouiller EP3</button>`:`<button class="btn btn-violet btn-sm" onclick="cloture('EP3')">🔒 Clôturer EP3</button>`}
@@ -2512,15 +2515,12 @@ function renderBilan(){
         </select>
       </div>
     </div>
-    <div style="font-size:.72rem;color:var(--gris);margin-bottom:.5rem">Le prof a le dernier mot sur la note finale.</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.5rem">
-      <div style="background:var(--gris2);border-radius:var(--r2);padding:.5rem .6rem;font-size:.78rem">
-        <div style="font-weight:700;color:var(--bleu);margin-bottom:.2rem">📊 Note proposée (calcul)</div>
-        <div style="font-size:1.1rem;font-weight:800;color:var(--bleu)">${e2.note}<span style="font-size:.75rem;color:var(--gris)">/20 EP2</span> + ${e3.note}<span style="font-size:.75rem;color:var(--gris)">/20 EP3</span></div>
-      </div>
-      <div style="background:var(--gris2);border-radius:var(--r2);padding:.5rem .6rem;font-size:.78rem">
-        <div style="font-weight:700;color:var(--orange);margin-bottom:.2rem">🎯 Note finale (jury)</div>
-        <div style="font-size:1.1rem;font-weight:800;color:var(--orange)">${n2.note_finale!=null?n2.note_finale:'—'}<span style="font-size:.75rem;color:var(--gris)">/20 EP2</span> + ${n3.note_finale!=null?n3.note_finale:'—'}<span style="font-size:.75rem;color:var(--gris)">/20 EP3</span></div>
+    <div style="font-size:.72rem;color:var(--gris);margin-bottom:.5rem">La note est la somme des compétences validées manuellement (cases ✅ dans le détail ci-dessus).</div>
+    <div style="background:var(--gris2);border-radius:var(--r2);padding:.6rem .75rem;font-size:.82rem;margin-bottom:.5rem">
+      <div style="display:flex;justify-content:space-around;align-items:center;flex-wrap:wrap;gap:.5rem">
+        <div style="text-align:center"><div style="font-size:.7rem;font-weight:700;color:var(--ep2);text-transform:uppercase">EP2</div><div style="font-size:1.3rem;font-weight:900;color:var(--ep2)">${e2.note}<span style="font-size:.75rem;color:var(--gris)">/20</span></div></div>
+        <div style="font-size:1.2rem;color:var(--gris)">+</div>
+        <div style="text-align:center"><div style="font-size:.7rem;font-weight:700;color:var(--ep3);text-transform:uppercase">EP3</div><div style="font-size:1.3rem;font-weight:900;color:var(--ep3)">${e3.note}<span style="font-size:.75rem;color:var(--gris)">/20</span></div></div>
       </div>
     </div>
   </div>
@@ -2562,14 +2562,27 @@ function renderBilan(){
     sigModule.render(cur,'candidat',document.getElementById('sigCandidat'));
   }
 }
-function bilanTable(det){
+function bilanTable(det,ep,code,isCloture){
+  const clrMap={NE:'color:var(--gris)',NA:'color:var(--rouge)',EC:'color:var(--jaune)',M:'color:#1a7d3e',PM:'color:var(--bleu2)'};
+  // Niveaux tuteur
+  const valsTuteur=(validations[code]||[]).filter(v=>v.phase==='tuteur'||v.evaluateur?.toLowerCase().includes('tuteur')||v.competence==='__obs_tuteur__');
   const rows=det.map(d=>{
-    // Couleurs: NE=gris, NA=rouge, EC=jaune, M=vert, PM=bleu
-    const cls={NE:'color:var(--gris)',NA:'color:var(--rouge)',EC:'color:var(--jaune)',M:'color:#1a7d3e',PM:'color:var(--bleu2)'}[d.lv]||'color:var(--gris)';
-    const lvDisplay=d.lv||'NE';
-    return `<tr><td><strong>${d.code}</strong></td><td>${d.nom}${d.obl?' <span style="color:var(--orange);font-size:.6rem">✱</span>':''}</td><td style="${cls};font-weight:800">${lvDisplay}</td><td>${d.pts}/${d.max}</td></tr>`;
+    const clsProf=clrMap[d.lv]||'color:var(--gris)';
+    const lvTut=_getTuteurNiv(valsTuteur,d.code)||'—';
+    const clsTut=clrMap[lvTut]||'color:var(--gris)';
+    const checked=d.validee?'checked':'';
+    const disabled=isCloture?'disabled':'';
+    const bgRow=d.validee?'background:#d4f4e2':'';
+    return `<tr style="${bgRow}">
+      <td><strong>${d.code}</strong></td>
+      <td>${d.nom}${d.obl?' <span style="color:var(--orange);font-size:.6rem">✱</span>':''}</td>
+      <td style="${clsTut};font-weight:800;text-align:center">${lvTut}</td>
+      <td style="${clsProf};font-weight:800;text-align:center">${d.lv||'NE'}</td>
+      <td style="text-align:center"><input type="checkbox" ${checked} ${disabled} onchange="toggleCompVal('${ep}','${d.code}')" style="width:1.2rem;height:1.2rem;cursor:pointer;accent-color:#1a7d3e"></td>
+      <td style="text-align:center;font-weight:700;font-size:.75rem">${d.validee?d.max:'0'}/${d.max}</td>
+    </tr>`;
   }).join('');
-  return `<table class="bilan-table"><thead><tr><th>Code</th><th>Compétence</th><th>Niveau</th><th>Pts</th></tr></thead><tbody>${rows}</tbody></table>`;
+  return `<table class="bilan-table"><thead><tr><th>Code</th><th>Compétence</th><th style="text-align:center">🏢 Tuteur</th><th style="text-align:center">👨‍🏫 Prof</th><th style="text-align:center">✅</th><th style="text-align:center">Pts</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 function saveJury(){
   if(!cur)return;
@@ -2581,20 +2594,12 @@ function saveJury(){
   saveLocal();
   toast('Jury enregistré','ok');
 }
-async function valNote(ep){
-  const val=parseFloat(document.getElementById('nf'+ep).value);
-  if(isNaN(val)||val<0||val>20){toast('Note invalide (0-20)','err');return;}
-  if(!notes[cur])notes[cur]={EP2:{},EP3:{}};
-  const e=calcNote(cur,ep);
-  notes[cur][ep]={...notes[cur][ep],note_proposee:e.note,note_finale:val,eligible:e.elig,evaluateur:cfg.nomProf};
-  saveLocal();toast(`Note ${ep} validée : ${val}/20`,'ok');
-  if(online){try{await apiCall({action:'saveNote',eleve:cur,data:{epreuve:ep,...notes[cur][ep]}});}catch{}}
-  renderBilan();
-}
+/* valNote supprimé — la note est calculée automatiquement
+   à partir des compétences validées manuellement (toggleCompVal) */
 async function cloture(ep){
   if(!notes[cur])notes[cur]={EP2:{},EP3:{}};
   const e=calcNote(cur,ep);
-  notes[cur][ep]={...notes[cur][ep],note_proposee:e.note,eligible:e.elig,cloture:true,evaluateur:cfg.nomProf};
+  notes[cur][ep]={...notes[cur][ep],note_finale:e.note,eligible:e.elig,cloture:true,evaluateur:cfg.nomProf};
   saveLocal();toast(`${ep} clôturée`,'ok');
   if(online){try{await apiCall({action:'cloturerEpreuve',eleve:cur,data:{epreuve:ep,...notes[cur][ep]}});}catch{}}
   renderBilan();renderDash();
@@ -2822,17 +2827,43 @@ async function importRows(rows){
 function showQR(code){
   const s=students.find(x=>x.code===code)||{nom:'?',prenom:''};
   const base=cfg.baseUrl||'https://frigorx.github.io/inerweb-tt-v4/';
-  const ue=`${base}inerweb_eleve.html?eleve=${code}&token=${s.token_eleve||'TOKEN'}`;
-  const ut=`${base}inerweb_tuteur.html`;
-  showModal(`📱 QR Codes — ${s.nom} ${s.prenom||''}`,`
-  <div class="qr-wrap">
-    <div class="qr-item"><div class="qr-lbl">📱 Badge élève</div><div id="qre" style="display:flex;justify-content:center;margin-bottom:.4rem"></div><div class="qr-url">${ue}</div></div>
-    <div class="qr-item"><div class="qr-lbl">🏢 Badge tuteur (accès page tuteur)</div><div id="qrt" style="display:flex;justify-content:center;margin-bottom:.4rem"></div><div class="qr-url">${ut}</div></div>
+  const ue=`${base}inerweb_eleve.html?eleve=${code}&token=${s.token_eleve||'TOKEN'}&role=eleve`;
+  const ut=`${base}inerweb_tuteur.html?eleve=${code}&tuteur=${s.token_tuteur||'TOKEN'}&role=tuteur`;
+  showModal(`📱 Badges — ${s.nom} ${s.prenom||''}`,`
+  <div style="display:flex;flex-direction:column;gap:1rem">
+    <!-- Badge Élève -->
+    <div style="background:linear-gradient(135deg,#1b3a63,#2d5a8c);border-radius:12px;padding:1.2rem;color:#fff;position:relative;overflow:hidden">
+      <div style="position:absolute;top:0;right:0;bottom:0;width:40%;background:rgba(255,255,255,.08);border-radius:0 12px 12px 0"></div>
+      <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.75rem">
+        <span style="font-size:1.6rem">📱</span>
+        <div>
+          <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;opacity:.8">Badge Élève</div>
+          <div style="font-size:1.1rem;font-weight:900">${s.nom} ${s.prenom||''}</div>
+          <div style="font-size:.72rem;opacity:.7">${s.classe||''} · ${s.entreprise_nom||''}</div>
+        </div>
+      </div>
+      <div id="qre" style="display:flex;justify-content:center;background:#fff;border-radius:8px;padding:.6rem;width:fit-content;margin:0 auto"></div>
+      <div style="font-size:.55rem;color:rgba(255,255,255,.5);margin-top:.5rem;word-break:break-all;text-align:center">${ue}</div>
+    </div>
+    <!-- Badge Tuteur -->
+    <div style="background:linear-gradient(135deg,#0d6e5e,#16a085);border-radius:12px;padding:1.2rem;color:#fff;position:relative;overflow:hidden">
+      <div style="position:absolute;top:0;right:0;bottom:0;width:40%;background:rgba(255,255,255,.08);border-radius:0 12px 12px 0"></div>
+      <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.75rem">
+        <span style="font-size:1.6rem">🏢</span>
+        <div>
+          <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;opacity:.8">Badge Tuteur</div>
+          <div style="font-size:1.1rem;font-weight:900">${s.tuteur_nom||'Tuteur'}</div>
+          <div style="font-size:.72rem;opacity:.7">Stagiaire : ${s.nom} ${s.prenom||''}</div>
+        </div>
+      </div>
+      <div id="qrt" style="display:flex;justify-content:center;background:#fff;border-radius:8px;padding:.6rem;width:fit-content;margin:0 auto"></div>
+      <div style="font-size:.55rem;color:rgba(255,255,255,.5);margin-top:.5rem;word-break:break-all;text-align:center">${ut}</div>
+    </div>
   </div>`,'<button class="btn btn-ghost" onclick="closeModal()">Fermer</button>');
   setTimeout(()=>{
     try{
-      new QRCode(document.getElementById('qre'),{text:ue,width:150,height:150});
-      new QRCode(document.getElementById('qrt'),{text:ut,width:150,height:150});
+      new QRCode(document.getElementById('qre'),{text:ue,width:200,height:200,correctLevel:QRCode.CorrectLevel.M});
+      new QRCode(document.getElementById('qrt'),{text:ut,width:200,height:200,correctLevel:QRCode.CorrectLevel.M});
     }catch{
       document.getElementById('qre').textContent=ue;
       document.getElementById('qrt').textContent=ut;
@@ -2891,60 +2922,128 @@ function previewPageTuteur(code){
 }
 function showQRAll(){
   if(!students.length){toast('Aucun élève','warn');return;}
-  // Génère un PDF A4 avec tous les QR codes (2 par ligne)
   const{jsPDF}=window.jspdf;
-  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
-  const base=cfg.baseUrl||'https://frigorx.github.io/inerweb-tt/';
-  let x=10,y=15,col=0;
-  // En-tête
-  doc.setFillColor(27,58,99);doc.rect(0,0,210,14,'F');
-  doc.setTextColor(255,255,255);doc.setFontSize(9);doc.setFont('helvetica','bold');
-  doc.text('inerWeb TT 4.0 — Badges QR élèves & tuteurs',10,9);
-  doc.setFontSize(7);doc.setFont('helvetica','normal');
-  doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')} · ${appCfg.etablissement||'Établissement'}`,130,9);
-  y=20;
-  // Canvas temporaire pour générer QR en base64
-  const genQRDataUrl=(text)=>new Promise(resolve=>{
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const base=cfg.baseUrl||'https://frigorx.github.io/inerweb-tt-v4/';
+  const etab=appCfg.etablissement||'LPP Jacques Raynaud';
+  // Dimensions carte de visite : 85×54mm
+  const CW=85,CH=54,MX=10,MY=10,GAP=5;
+  const cols=Math.floor((297-2*MX+GAP)/(CW+GAP));
+  const rows=Math.floor((210-2*MY+GAP)/(CH+GAP));
+  const perPage=cols*rows;
+  const genQRDataUrl=(text,sz)=>new Promise(resolve=>{
     const div=document.createElement('div');div.style.cssText='position:fixed;left:-9999px;top:-9999px';
     document.body.appendChild(div);
     try{
-      const qr=new QRCode(div,{text,width:120,height:120,correctLevel:QRCode.CorrectLevel.M});
+      const qr=new QRCode(div,{text,width:sz||150,height:sz||150,correctLevel:QRCode.CorrectLevel.M});
       setTimeout(()=>{
         const img=div.querySelector('img')||div.querySelector('canvas');
         const url=img?(img.src||img.toDataURL()):'';
         div.remove();resolve(url);
-      },150);
+      },200);
     }catch{div.remove();resolve('');}
   });
+  // Dessine une carte RECTO (QR + identité)
+  function drawRecto(bx,by,s,qrImg,type){
+    const isEleve=type==='eleve';
+    const c1=isEleve?[27,58,99]:[13,110,94];
+    const c2=isEleve?[45,90,140]:[22,160,133];
+    // Fond avec dégradé simulé
+    doc.setFillColor(...c1);doc.roundedRect(bx,by,CW,CH,3,3,'F');
+    // Bande décorative droite
+    doc.setFillColor(c2[0],c2[1],c2[2]);doc.roundedRect(bx+CW-22,by,22,CH,0,3,'F');
+    // Logo inerWeb (texte)
+    doc.setTextColor(255,255,255);doc.setFontSize(9);doc.setFont('helvetica','bold');
+    doc.text('inerWeb',bx+3,by+6);
+    doc.setFontSize(6);doc.setFont('helvetica','normal');
+    doc.setTextColor(232,145,74);doc.text('Pilote',bx+28,by+6);
+    // Ligne orange sous logo
+    doc.setDrawColor(232,145,74);doc.setLineWidth(.5);doc.line(bx+3,by+7.5,bx+37,by+7.5);
+    // Nom élève ou tuteur
+    doc.setTextColor(255,255,255);doc.setFontSize(10);doc.setFont('helvetica','bold');
+    doc.text(`${s.nom} ${s.prenom||''}`,bx+3,by+14,{maxWidth:55});
+    // Sous-titre
+    doc.setFontSize(6.5);doc.setFont('helvetica','normal');
+    if(isEleve){
+      doc.text(`${s.classe||''} - ${etab}`,bx+3,by+19,{maxWidth:55});
+    }else{
+      doc.text(`Tuteur : ${s.tuteur_nom||'—'}`,bx+3,by+19,{maxWidth:55});
+      doc.setFontSize(5.5);doc.text(`Stagiaire : ${s.nom} ${s.prenom||''}`,bx+3,by+23,{maxWidth:55});
+    }
+    // Type badge
+    doc.setFontSize(7);doc.setFont('helvetica','bold');
+    doc.setTextColor(232,145,74);
+    doc.text(isEleve?'ELEVE':'TUTEUR',bx+CW-20,by+CH-4);
+    // QR code (fond blanc)
+    if(qrImg){
+      const qsz=28;
+      doc.setFillColor(255,255,255);doc.roundedRect(bx+3,by+CH-qsz-4,qsz+4,qsz+4,2,2,'F');
+      doc.addImage(qrImg,'PNG',bx+5,by+CH-qsz-2,qsz,qsz);
+    }
+    // LPP petit en bas
+    doc.setTextColor(255,255,255);doc.setFontSize(4.5);doc.setFont('helvetica','normal');
+    doc.text('LPP Jacques Raynaud',bx+37,by+CH-5);
+  }
+  // Dessine un VERSO (logos + infos)
+  function drawVerso(bx,by){
+    doc.setFillColor(255,255,255);doc.roundedRect(bx,by,CW,CH,3,3,'F');
+    doc.setDrawColor(27,58,99);doc.setLineWidth(.3);doc.roundedRect(bx,by,CW,CH,3,3,'S');
+    // Logo inerWeb centré
+    doc.setTextColor(27,58,99);doc.setFontSize(14);doc.setFont('helvetica','bold');
+    doc.text('inerWeb',bx+CW/2-12,by+14);
+    doc.setFontSize(8);doc.setTextColor(232,145,74);doc.setFont('helvetica','bold');
+    doc.text('Pilote',bx+CW/2+10,by+14);
+    // Ligne orange
+    doc.setDrawColor(232,145,74);doc.setLineWidth(.7);doc.line(bx+15,by+16,bx+CW-15,by+16);
+    // Nom lycée
+    doc.setTextColor(27,58,99);doc.setFontSize(7);doc.setFont('helvetica','bold');
+    doc.text('LYCEE PROFESSIONNEL PRIVE',bx+CW/2,by+23,{align:'center'});
+    doc.setFontSize(10);doc.setFont('helvetica','bold');
+    doc.text('JACQUES RAYNAUD',bx+CW/2,by+30,{align:'center'});
+    // Sous-titre
+    doc.setFontSize(6);doc.setFont('helvetica','normal');doc.setTextColor(100,100,100);
+    doc.text('Plateforme de suivi de stage',bx+CW/2,by+36,{align:'center'});
+    doc.text(`Session ${appCfg.session||2026}`,bx+CW/2,by+40,{align:'center'});
+    // Petite ligne déco bas
+    doc.setDrawColor(27,58,99);doc.setLineWidth(.3);doc.line(bx+25,by+44,bx+CW-25,by+44);
+    doc.setFontSize(5);doc.text('Scannez le QR au recto pour acceder a votre espace',bx+CW/2,by+48,{align:'center'});
+  }
+
   (async()=>{
     showSpinner();
+    // PAGE 1 : Rectos (cartes avec QR)
+    let idx=0;
     for(const s of students){
-      const ue=`${base}inerweb_eleve.html?eleve=${s.code}&token=${s.token_eleve}`;
-      const ut=`${base}inerweb_tuteur.html?eleve=${s.code}&tuteur=${s.token_tuteur}`;
-      // Carte élève (col gauche ou droite)
-      const bx=col===0?10:110;
-      doc.setDrawColor(200,200,200);doc.roundedRect(bx,y,90,52,3,3,'S');
-      doc.setFillColor(45,90,140);doc.roundedRect(bx,y,90,8,3,3,'F');
-      doc.setTextColor(255,255,255);doc.setFontSize(7);doc.setFont('helvetica','bold');
-      doc.text(`${s.nom} ${s.prenom||''}`,bx+2,y+5.5);
-      doc.setFontSize(6);doc.setFont('helvetica','normal');doc.text(s.classe||'',bx+60,y+5.5);
-      // QR élève
-      const qe=await genQRDataUrl(ue);
-      if(qe)doc.addImage(qe,'PNG',bx+2,y+10,25,25);
-      doc.setTextColor(45,90,140);doc.setFontSize(6);doc.setFont('helvetica','bold');doc.text('📱 Élève',bx+28,y+14);
-      doc.setTextColor(80,80,80);doc.setFont('helvetica','normal');doc.setFontSize(5);
-      doc.text(ue.replace('https://',''),bx+28,y+19,{maxWidth:58});
-      // QR tuteur
-      const qt=await genQRDataUrl(ut);
-      if(qt)doc.addImage(qt,'PNG',bx+2,y+36,20,20);
-      doc.setTextColor(22,160,133);doc.setFontSize(6);doc.setFont('helvetica','bold');doc.text('🏢 Tuteur',bx+24,y+40);
-      doc.setTextColor(80,80,80);doc.setFont('helvetica','normal');doc.setFontSize(5);
-      doc.text(ut.replace('https://',''),bx+24,y+45,{maxWidth:62});
-      col++;
-      if(col===2){col=0;y+=58;if(y>260&&students.indexOf(s)<students.length-1){doc.addPage();y=15;}}
+      // 2 cartes par élève : élève + tuteur
+      for(const type of ['eleve','tuteur']){
+        if(idx>0&&idx%perPage===0)doc.addPage();
+        const pos=idx%perPage;
+        const c=pos%cols,r=Math.floor(pos/cols);
+        const bx=MX+c*(CW+GAP),by=MY+r*(CH+GAP);
+        const url=type==='eleve'
+          ?`${base}inerweb_eleve.html?eleve=${s.code}&token=${s.token_eleve}&role=eleve`
+          :`${base}inerweb_tuteur.html?eleve=${s.code}&tuteur=${s.token_tuteur}&role=tuteur`;
+        const qrImg=await genQRDataUrl(url,150);
+        drawRecto(bx,by,s,qrImg,type);
+        idx++;
+      }
+    }
+    // PAGE 2+ : Versos (même disposition, en miroir pour impression recto/verso)
+    const totalCards=students.length*2;
+    const totalPages=Math.ceil(totalCards/perPage);
+    for(let p=0;p<totalPages;p++){
+      doc.addPage();
+      const start=p*perPage,end=Math.min(start+perPage,totalCards);
+      for(let i=start;i<end;i++){
+        const pos=i%perPage;
+        const c=pos%cols,r=Math.floor(pos/cols);
+        // Miroir horizontal pour impression recto/verso
+        const bx=MX+(cols-1-c)*(CW+GAP),by=MY+r*(CH+GAP);
+        drawVerso(bx,by);
+      }
     }
     doc.save(`Badges_QR_${appCfg.session||2026}.pdf`);
-    hideSpinner();toast('PDF badges généré','ok');
+    hideSpinner();toast('PDF badges recto/verso généré','ok');
   })();
 }
 
@@ -3014,7 +3113,7 @@ async function exportAllPDF(){
   toast(`${ok} PDF générés${err?' · '+err+' erreur(s)':''}`,err?'warn':'ok');
 }
 function exportExcel(){
-  const rows=[['Code','Nom','Prénom','Classe','Note EP2 proposée','Note EP2 finale','Note EP3 proposée','Note EP3 finale','EP2 clôturé','EP3 clôturé']];
+  const rows=[['Code','Nom','Prénom','Classe','Note EP2 (validées)','Note EP2 clôturée','Note EP3 (validées)','Note EP3 clôturée','EP2 clôturé','EP3 clôturé']];
   students.forEach(s=>{const e2=calcNote(s.code,'EP2'),e3=calcNote(s.code,'EP3'),n2=notes[s.code]?.EP2||{},n3=notes[s.code]?.EP3||{};rows.push([s.code,s.nom,s.prenom||'',s.classe||'',e2.note,n2.note_finale||'',e3.note,n3.note_finale||'',n2.cloture?'Oui':'Non',n3.cloture?'Oui':'Non']);});
   const ws=XLSX.utils.aoa_to_sheet(rows),wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'CCF');XLSX.writeFile(wb,`CCF_Recap_${appCfg.session||2026}.xlsx`);

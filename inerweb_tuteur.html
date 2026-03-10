@@ -1049,7 +1049,16 @@ addTel();addEmail();addTuteur();
 chargerLocal();
 // Deep-link
 const _p=new URLSearchParams(window.location.search);
-if(_p.get('preview')==='1'&&_p.get('eleve')){
+// Sécurité : vérifier que ce n'est pas un QR élève scanné par erreur
+if(_p.get('role')==='eleve'){
+  document.getElementById('setupScreen').innerHTML=`
+    <div style="text-align:center;padding:3rem 1.5rem;max-width:400px;margin:0 auto">
+      <div style="font-size:3rem;margin-bottom:.5rem">🚫</div>
+      <h2 style="color:#c0390f;margin-bottom:.5rem">Mauvais QR code !</h2>
+      <p style="color:#666;font-size:.9rem;margin-bottom:1rem">Ce badge est réservé à l'<strong>élève</strong>.<br>Utilisez votre badge <strong>tuteur</strong> (vert) pour évaluer le stagiaire.</p>
+      <p style="font-size:.75rem;color:#999">En cas de doute, contactez l'enseignant référent.</p>
+    </div>`;
+} else if(_p.get('preview')==='1'&&_p.get('eleve')){
   // Mode preview prof : afficher la page tuteur sans vérification API
   eleveCode=_p.get('eleve');
   tuteurToken=_p.get('tuteur')||'PREVIEW';
@@ -1064,7 +1073,7 @@ if(_p.get('preview')==='1'&&_p.get('eleve')){
   const d=JSON.parse(localStorage.getItem('inerweb-tuteur-data')||'{}');
   if(d.entreprise?.nom&&d.tuteurs?.[0]?.nom){
     entreprise=d.entreprise;tuteurs=d.tuteurs;
-    chargerEleve(_p.get('eleve'),_p.get('token')||'');
+    chargerEleve(_p.get('eleve'),_p.get('tuteur')||_p.get('token')||'');
   }
 }
 </script>
