@@ -716,6 +716,10 @@
     var zone = document.getElementById('actCompsZone');
     if (!zone) return;
     var comps = _compsForEpreuve(ep);
+    if (!comps.length) {
+      zone.innerHTML = '<span style="color:var(--gris);font-size:.78rem;font-style:italic">Aucune compétence disponible pour ' + ep + '</span>';
+      return;
+    }
     var c = COULEURS[ep];
     zone.innerHTML = comps.map(function(comp) {
       return '<button type="button" data-act="toggleComp" data-code="' + comp.code + '" class="actCompBtn" '
