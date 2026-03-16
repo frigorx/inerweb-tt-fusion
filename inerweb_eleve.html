@@ -895,10 +895,23 @@ document.addEventListener('DOMContentLoaded',()=>{
   }
   if(tokenParam){
     // Token en URL → priorité sur le cache local (évite d'ouvrir le mauvais compte)
+    localStorage.removeItem(SK);
     document.getElementById('tokenInput').value=tokenParam;
     doLogin();
-  } else if(loadLocal()&&eleve){
-    startApp();
+  } else if(loadLocal()&&eleve&&cfg.token){
+    // Cache existant → vérifier que c'est le bon compte, proposer de changer
+    document.getElementById('loginScreen').classList.remove('hidden');
+    document.getElementById('loginScreen').innerHTML=`
+      <div class="login-card">
+        <div class="login-title">Espace <span>Élève</span></div>
+        <div style="background:#d4f4e2;border-radius:10px;padding:1rem;margin:1rem 0;text-align:center">
+          <div style="font-size:2rem;margin-bottom:.3rem">👋</div>
+          <div style="font-weight:900;font-size:1.1rem;color:#1b3a63">${eleve.prenom} ${eleve.nom}</div>
+          <div style="font-size:.8rem;color:#666">${eleve.classe||''}</div>
+        </div>
+        <button class="login-btn" onclick="startApp()" style="margin-bottom:.5rem">✅ C'est moi, continuer</button>
+        <button class="login-btn" onclick="localStorage.removeItem('${SK}');location.reload()" style="background:#e74c3c;font-size:.85rem">🔄 Ce n'est pas moi</button>
+      </div>`;
   }
 });
 document.getElementById('tokenInput').addEventListener('keypress',e=>{if(e.key==='Enter')doLogin();});
