@@ -413,7 +413,7 @@ const TYPE_LBL={activite:'🔧 Activité',observation:'👁️ Observation',ques
 
 let cfg={apiUrl:'',token:''};
 let eleve=null,journal=[],evals={},pendingPhotos=[],sharedDocs=[],eleveDocs=[],activites=[],eleveNotes={},copiesCachees=[];
-const SK='inerweb-eleve-v2',MAX_PHOTOS_DAY=10,MAX_PHOTO_SIZE=200*1024;
+const SK='inerweb-eleve-v2',MAX_PHOTOS_DAY=10,MAX_PHOTO_SIZE=800*1024;
 
 function toast(msg,type='inf'){const c=document.getElementById('toastC'),t=document.createElement('div');t.className='toast '+type;t.textContent=msg;c.appendChild(t);setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),300);},3000);}
 function showSpinner(){document.getElementById('spinnerOv').classList.add('active');}
@@ -436,13 +436,13 @@ async function compressImage(file){
         try{
           const canvas=document.createElement('canvas');
           let w=img.width,h=img.height;
-          const maxDim=1200;
+          const maxDim=1600;
           if(w>maxDim||h>maxDim){if(w>h){h=h*maxDim/w;w=maxDim;}else{w=w*maxDim/h;h=maxDim;}}
           canvas.width=w;canvas.height=h;
           const ctx=canvas.getContext('2d');
           ctx.drawImage(img,0,0,w,h);
-          let quality=0.7,dataUrl=canvas.toDataURL('image/jpeg',quality);
-          while(dataUrl.length>MAX_PHOTO_SIZE*1.37&&quality>0.3){quality-=0.1;dataUrl=canvas.toDataURL('image/jpeg',quality);}
+          let quality=0.85,dataUrl=canvas.toDataURL('image/jpeg',quality);
+          while(dataUrl.length>MAX_PHOTO_SIZE*1.37&&quality>0.3){quality-=0.05;dataUrl=canvas.toDataURL('image/jpeg',quality);}
           resolve(dataUrl);
         }catch(err){reject(err);}
       };
