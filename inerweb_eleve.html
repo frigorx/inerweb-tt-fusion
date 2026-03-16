@@ -545,15 +545,27 @@ function startApp(){document.getElementById('loginScreen').classList.add('hidden
 async function syncCloud(){
   if(!cfg.apiUrl||cfg.token==='DEMO'){journal.forEach(j=>j.synced=true);renderJournal();return;}
   const btn=document.getElementById('btnSync');btn.classList.add('syncing');
+  let synced=0;
   try{
     const unsyncedEntries=journal.filter(j=>!j.synced);
     for(const entry of unsyncedEntries){
-      const p=new URLSearchParams({action:'addJournalEntry',token:cfg.token,eleve:eleve.code,entry:JSON.stringify(entry)});
-      const r=await fetch(`${cfg.apiUrl}?${p}`,{redirect:'follow'});
-      const d=await r.json();
-      if(d.success)entry.synced=true;
+      try{
+        // Séparer photos du reste pour envoyer en POST (les photos base64 sont trop grosses pour GET)
+        const entryData={id:entry.id,date:entry.date,type:entry.type,text:entry.text,photos:entry.photos||[],pfmp:1};
+        const urlParams=new URLSearchParams({action:'addJournalEntry',token:cfg.token,eleve:eleve.code});
+        const r=await fetch(`${cfg.apiUrl}?${urlParams}`,{method:'POST',redirect:'follow',headers:{'Content-Type':'text/plain'},body:JSON.stringify({entry:JSON.stringify(entryData)})});
+        const d=await r.json();
+        if(d.ok){
+          // Remplacer les photos base64 par les URLs Drive retournées
+          if(d.photoUrls&&d.photoUrls.length)entry.photos=d.photoUrls;
+          entry.synced=true;synced++;
+        }
+      }catch(err){console.error('Sync entry error:',entry.id,err);}
     }
-    saveLocal();renderJournal();toast('Synchronisé ✓','ok');
+    saveLocal();renderJournal();
+    if(synced)toast(`${synced} entrée(s) synchronisée(s) ✓`,'ok');
+    else if(unsyncedEntries.length)toast('Sync en attente...','warn');
+    else toast('Tout est à jour ✓','ok');
   }catch(err){console.error('Sync error:',err);toast('Erreur sync','err');}
   btn.classList.remove('syncing');
 }
