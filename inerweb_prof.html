@@ -11,6 +11,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <!-- Modules Fusion — cache-bust automatique -->
 <script>
 (function(){
@@ -740,6 +741,15 @@ body.demo-mode::after{content:'MODE DÉMO';position:fixed;top:56px;left:50%;tran
           </label>
           <div id="docFileInfo" style="font-size:.78rem;color:var(--gris);margin-bottom:.5rem"></div>
           <button class="btn btn-teal" onclick="ajouterDocument()">📤 Ajouter au drive</button>
+          <hr style="margin:.75rem 0;border:none;border-top:1px dashed var(--gris3)">
+          <div class="card-title">📋 Import en lot — Conventions de stage</div>
+          <div style="font-size:.78rem;color:var(--gris);margin-bottom:.5rem">Sélectionnez un PDF contenant toutes les conventions (2 pages/élève) ou plusieurs PDF individuels. Le matching par nom est automatique.</div>
+          <label class="file-upload" style="margin-bottom:.5rem">
+            <input type="file" id="conventionFiles" accept=".pdf" multiple onchange="conventionFilesSelected(this)">
+            <span>📋 Choisir les conventions PDF</span>
+          </label>
+          <div id="conventionInfo" style="font-size:.78rem;color:var(--gris);margin-bottom:.5rem"></div>
+          <button class="btn btn-violet" onclick="importerConventions()">🚀 Importer les conventions</button>
         </div>
         <div id="sharedDocsList"></div>
       </div>
@@ -2411,6 +2421,125 @@ function ajouterDocument(){
   reader.readAsDataURL(f);
 }
 
+/* ═══ IMPORT EN LOT — CONVENTIONS DE STAGE ═══ */
+function conventionFilesSelected(input){
+  const info=document.getElementById('conventionInfo');
+  if(!input.files.length){info.innerHTML='';return;}
+  if(input.files.length===1){
+    const f=input.files[0];
+    const sz=f.size<1024*1024?(Math.round(f.size/1024)+'Ko'):(Math.round(f.size/1024/1024*10)/10+'Mo');
+    info.innerHTML=`<strong>1 fichier PDF combiné</strong> — ${f.name} (${sz})<br>Le PDF sera découpé automatiquement (2 pages par élève)`;
+  }else{
+    info.innerHTML=`<strong>${input.files.length} fichiers PDF individuels</strong> sélectionnés`;
+  }
+}
+
+function normaliserNom(s){
+  return s.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim().toUpperCase();
+}
+
+function matcherEleve(nomConv){
+  const norm=normaliserNom(nomConv);
+  let best=null,bestScore=0;
+  for(const s of students){
+    const nomS=normaliserNom(s.nom);
+    const prenomS=normaliserNom(s.prenom||'');
+    const full=nomS+' '+prenomS;
+    if(norm===full){return s;}
+    if(norm.startsWith(nomS)&&norm.includes(prenomS)){return s;}
+    if(nomS&&norm.includes(nomS)){
+      const score=nomS.length+(norm.includes(prenomS)?prenomS.length:0);
+      if(score>bestScore){bestScore=score;best=s;}
+    }
+  }
+  return best;
+}
+
+async function importerConventions(){
+  const input=document.getElementById('conventionFiles');
+  if(!input.files.length){toast('Sélectionnez des fichiers PDF','err');return;}
+  showSpinner();
+  try{
+    const files=Array.from(input.files);
+    let imports=[];
+
+    if(files.length===1&&files[0].size>500000){
+      // PDF combiné — découper avec pdf-lib
+      toast('Découpage du PDF en cours...','inf');
+      const buf=await files[0].arrayBuffer();
+      const srcPdf=await PDFLib.PDFDocument.load(buf);
+      const totalPages=srcPdf.getPageCount();
+      const pagesParEleve=2;
+      const nbConv=Math.floor(totalPages/pagesParEleve);
+
+      // Extraire le texte de chaque convention pour trouver le nom
+      for(let i=0;i<nbConv;i++){
+        const newPdf=await PDFLib.PDFDocument.create();
+        const pages=await newPdf.copyPages(srcPdf,[i*pagesParEleve,i*pagesParEleve+1]);
+        pages.forEach(p=>newPdf.addPage(p));
+        const pdfBytes=await newPdf.save();
+        const b64=btoa(String.fromCharCode(...new Uint8Array(pdfBytes)));
+        const dataUrl='data:application/pdf;base64,'+b64;
+        imports.push({index:i,dataUrl,taille:pdfBytes.length,nomFichier:`convention_${i+1}.pdf`});
+      }
+
+      // Matcher par ordre alphabétique des élèves (même ordre que le PDF)
+      const elevesTries=[...students].filter(s=>s.classe&&s.classe.includes('IFCA')).sort((a,b)=>normaliserNom(a.nom).localeCompare(normaliserNom(b.nom)));
+      for(let i=0;i<imports.length&&i<elevesTries.length;i++){
+        imports[i].eleve=elevesTries[i];
+        imports[i].nomFichier=`Convention_${elevesTries[i].nom}_${elevesTries[i].prenom||''}.pdf`;
+      }
+
+    }else{
+      // Fichiers individuels — matcher par nom de fichier
+      for(const f of files){
+        const buf=await f.arrayBuffer();
+        const b64=btoa(String.fromCharCode(...new Uint8Array(buf)));
+        const dataUrl='data:application/pdf;base64,'+b64;
+        // Extraire le nom du fichier (enlever extension et espaces doubles)
+        const nomFichier=f.name.replace(/\.pdf$/i,'').replace(/\s+/g,' ').trim();
+        const eleve=matcherEleve(nomFichier);
+        imports.push({dataUrl,taille:f.size,nomFichier:f.name,eleve});
+      }
+    }
+
+    // Créer les sharedDocs
+    let ok=0,skip=0;
+    for(const imp of imports){
+      if(!imp.eleve){skip++;continue;}
+      // Vérifier si une convention existe déjà pour cet élève
+      const existe=sharedDocs.some(d=>d.categorie==='convention'&&d.eleveCode===imp.eleve.code);
+      if(existe){skip++;continue;}
+      const doc={
+        id:Date.now().toString(36)+Math.random().toString(36).slice(2,6)+'c'+ok,
+        nom:`Convention ${imp.eleve.nom} ${imp.eleve.prenom||''}`.trim(),
+        filename:imp.nomFichier,
+        categorie:'convention',
+        visibilite:'eleves',
+        eleveCode:imp.eleve.code,
+        type:'application/pdf',
+        taille:imp.taille,
+        dataUrl:imp.dataUrl,
+        date:new Date().toISOString(),
+        auteur:cfg.nomProf||'Prof'
+      };
+      sharedDocs.push(doc);
+      ok++;
+    }
+
+    saveLocal();
+    renderSharedDocs();
+    input.value='';
+    document.getElementById('conventionInfo').innerHTML='';
+    toast(`${ok} convention(s) importée(s)${skip?' — '+skip+' ignorée(s)':''}`,ok?'ok':'warn');
+
+  }catch(err){
+    console.error(err);
+    toast('Erreur import : '+err.message,'err');
+  }
+  hideSpinner();
+}
+
 function supprimerDoc(id){
   if(!confirm('Supprimer ce document du drive ?'))return;
   sharedDocs=sharedDocs.filter(d=>d.id!==id);
@@ -2693,8 +2822,11 @@ async function doAddEleve(){
     const r=await apiCall({action:'addEleve',data:{nom,prenom,classe,groupe,annee,referentiel:'CAP_IFCA',pfmp1_sem:parseInt(document.getElementById('aPfmp1')?.value)||3,pfmp2_sem:parseInt(document.getElementById('aPfmp2')?.value)||3}});
     await syncAll();toast(`${nom} ajouté · ${r.code}`,'ok');
   }catch{
-    const code='ELV-'+String(students.length+1).padStart(3,'0');
-    students.push({code,nom,prenom,classe,groupe,annee,statut:'actif',referentiel:'CAP_IFCA',token_eleve:Math.random().toString(36).substring(2,10).toUpperCase(),token_tuteur:Math.random().toString(36).substring(2,10).toUpperCase()});
+    const nums=students.map(s=>parseInt((s.code||'').replace('ELV-',''))||0);
+    const next=(Math.max(0,...nums)+1).toString().padStart(3,'0');
+    const code='ELV-'+next;
+    const gTok=()=>{const c='ABCDEFGHJKLMNPQRTUVWXYZ2346789';const p=n=>Array.from({length:n},()=>c[Math.floor(Math.random()*c.length)]).join('');return p(4)+'-'+p(4)+'-'+p(4);};
+    students.push({code,nom,prenom,classe,groupe,annee,statut:'actif',referentiel:'CAP_IFCA',token_eleve:gTok(),token_tuteur:gTok()});
     window.students=students;
     saveLocal();updateAll();toast(`${nom} ajouté localement (sync en attente)`,'warn');
   }finally{hideSpinner();}
@@ -2820,7 +2952,7 @@ async function importRows(rows){
     if(!nom||students.find(s=>s.nom===nom&&s.prenom===prenom))continue;
     const grpNorm=groupe.match(/^G?1$/)?'G1':groupe.match(/^G?2$/)?'G2':groupe;
     try{await apiCall({action:'addEleve',data:{nom,prenom,classe,groupe:grpNorm,annee,referentiel:'CAP_IFCA'}});n++;}
-    catch{const code='ELV-'+String(students.length+1).padStart(3,'0');students.push({code,nom,prenom,classe,groupe:grpNorm,annee,statut:'actif',referentiel:'CAP_IFCA',token_eleve:Math.random().toString(36).substring(2,10).toUpperCase(),token_tuteur:Math.random().toString(36).substring(2,10).toUpperCase()});n++;}
+    catch{const nums=students.map(s=>parseInt((s.code||'').replace('ELV-',''))||0);const nx=(Math.max(0,...nums)+1).toString().padStart(3,'0');const code='ELV-'+nx;const gT=()=>{const c='ABCDEFGHJKLMNPQRTUVWXYZ2346789';const p=n=>Array.from({length:n},()=>c[Math.floor(Math.random()*c.length)]).join('');return p(4)+'-'+p(4)+'-'+p(4);};students.push({code,nom,prenom,classe,groupe:grpNorm,annee,statut:'actif',referentiel:'CAP_IFCA',token_eleve:gT(),token_tuteur:gT()});n++;}
   }
   saveLocal();await syncAll();hideSpinner();toast(`${n} élève(s) importé(s)`,'ok');
 }

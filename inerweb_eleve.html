@@ -357,10 +357,17 @@ input, select, textarea, button { font-family:inherit; }
         </ul>
       </div>
       <div class="photo-counter">Aujourd'hui : <strong id="photoCountToday">0</strong> / 10 photos</div>
-      <div class="upload-zone" id="uploadZone" onclick="document.getElementById('uploadInput').click()">
-        <div class="upload-zone-ico">📷</div>
-        <div class="upload-zone-txt"><strong>Clique</strong> ou glisse tes photos ici</div>
+      <div style="display:flex;gap:.5rem;margin-bottom:.5rem">
+        <div class="upload-zone" style="flex:1" onclick="document.getElementById('uploadCamera').click()">
+          <div class="upload-zone-ico">📸</div>
+          <div class="upload-zone-txt"><strong>Prendre une photo</strong></div>
+        </div>
+        <div class="upload-zone" style="flex:1" onclick="document.getElementById('uploadInput').click()">
+          <div class="upload-zone-ico">🖼️</div>
+          <div class="upload-zone-txt"><strong>Galerie</strong></div>
+        </div>
       </div>
+      <input type="file" id="uploadCamera" class="upload-input" accept="image/*" capture="environment" onchange="handleFiles(this.files)">
       <input type="file" id="uploadInput" class="upload-input" accept="image/*" multiple onchange="handleFiles(this.files)">
       <div class="upload-preview" id="uploadPreview"></div>
       <div class="form-group">
@@ -419,21 +426,25 @@ function saveLocal(){localStorage.setItem(SK,JSON.stringify({cfg,eleve,journal,e
 function loadLocal(){const d=localStorage.getItem(SK);if(!d)return false;try{const p=JSON.parse(d);cfg=p.cfg||{};eleve=p.eleve||null;journal=p.journal||[];evals=p.evals||{};eleveDocs=p.eleveDocs||[];return!!eleve;}catch{return false;}}
 
 async function compressImage(file){
-  return new Promise(resolve=>{
+  return new Promise((resolve,reject)=>{
     const reader=new FileReader();
+    reader.onerror=()=>reject(new Error('Lecture fichier impossible'));
     reader.onload=e=>{
       const img=new Image();
+      img.onerror=()=>reject(new Error('Image non lisible'));
       img.onload=()=>{
-        const canvas=document.createElement('canvas');
-        let w=img.width,h=img.height;
-        const maxDim=1200;
-        if(w>maxDim||h>maxDim){if(w>h){h=h*maxDim/w;w=maxDim;}else{w=w*maxDim/h;h=maxDim;}}
-        canvas.width=w;canvas.height=h;
-        const ctx=canvas.getContext('2d');
-        ctx.drawImage(img,0,0,w,h);
-        let quality=0.7,dataUrl=canvas.toDataURL('image/jpeg',quality);
-        while(dataUrl.length>MAX_PHOTO_SIZE*1.37&&quality>0.3){quality-=0.1;dataUrl=canvas.toDataURL('image/jpeg',quality);}
-        resolve(dataUrl);
+        try{
+          const canvas=document.createElement('canvas');
+          let w=img.width,h=img.height;
+          const maxDim=1200;
+          if(w>maxDim||h>maxDim){if(w>h){h=h*maxDim/w;w=maxDim;}else{w=w*maxDim/h;h=maxDim;}}
+          canvas.width=w;canvas.height=h;
+          const ctx=canvas.getContext('2d');
+          ctx.drawImage(img,0,0,w,h);
+          let quality=0.7,dataUrl=canvas.toDataURL('image/jpeg',quality);
+          while(dataUrl.length>MAX_PHOTO_SIZE*1.37&&quality>0.3){quality-=0.1;dataUrl=canvas.toDataURL('image/jpeg',quality);}
+          resolve(dataUrl);
+        }catch(err){reject(err);}
       };
       img.src=e.target.result;
     };
@@ -449,7 +460,7 @@ async function handleFiles(files){
   if(remaining<=0){toast('Limite de 10 photos/jour atteinte','err');return;}
   const toProcess=Array.from(files).slice(0,remaining);
   showSpinner();
-  for(const file of toProcess){if(!file.type.startsWith('image/'))continue;const compressed=await compressImage(file);pendingPhotos.push(compressed);}
+  for(const file of toProcess){if(!file.type.startsWith('image/')&&!file.name.match(/\.(heic|heif)$/i))continue;try{const compressed=await compressImage(file);pendingPhotos.push(compressed);}catch(err){console.error('Photo ignorée:',err);toast('Photo non lisible, essaie un autre format','err');}}
   hideSpinner();renderPendingPhotos();
   if(files.length>remaining)toast(`Seulement ${remaining} photo(s) ajoutée(s)`,'warn');
 }
@@ -870,10 +881,13 @@ document.addEventListener('DOMContentLoaded',()=>{
       }
     }catch(e){console.error(e);}
   }
-  if(tokenParam)document.getElementById('tokenInput').value=tokenParam;
-  if(loadLocal()&&eleve){startApp();return;}
-  // Auto-login si token en URL
-  if(tokenParam){doLogin();}
+  if(tokenParam){
+    // Token en URL → priorité sur le cache local (évite d'ouvrir le mauvais compte)
+    document.getElementById('tokenInput').value=tokenParam;
+    doLogin();
+  } else if(loadLocal()&&eleve){
+    startApp();
+  }
 });
 document.getElementById('tokenInput').addEventListener('keypress',e=>{if(e.key==='Enter')doLogin();});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closePhotoModal();});
