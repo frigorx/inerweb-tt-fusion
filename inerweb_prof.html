@@ -2,6 +2,10 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
+<script>
+// Auto-connect : lecture config depuis hash URL (#cfg=...)
+(function(){var h=location.hash;if(h.indexOf('#cfg=')!==0)return;try{var d=JSON.parse(atob(decodeURIComponent(h.substring(5))));if(d.apiUrl&&d.apiKey){localStorage.setItem('inerweb-tt-cfg',JSON.stringify(d));history.replaceState(null,'',location.pathname+location.search);}}catch(e){}})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
